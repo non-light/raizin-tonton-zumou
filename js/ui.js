@@ -42,6 +42,8 @@ var UI = (function () {
     el.confirm.addEventListener('click', function () {
       if (state.playerChar) startEncounter();
     });
+    // 対戦中でもキャラ選択へ戻れる（取組は中断される）
+    $('btn-quit').addEventListener('click', showPlayerSelect);
     $('btn-rematch').addEventListener('click', rematch);
     $('btn-change').addEventListener('click', backToSelect);
 
