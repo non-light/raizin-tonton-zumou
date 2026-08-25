@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>雷神トントン相撲</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <header class="brand">
+    <h1 class="brand-title">雷神トントン相撲</h1>
+    <p class="brand-sub">宇宙場所</p>
+  </header>
+
+  <!-- 1. 自分のキャラクター選択（対戦相手はCPUがランダムに決まる） -->
+  <section class="screen" id="screen-player">
+    <h2 class="title">だれで戦う？</h2>
+    <p class="subtitle">つかうキャラクターをえらんでね（あいてはランダム）</p>
+    <div class="card-grid" id="player-grid"></div>
+    <div class="confirm-bar">
+      <button class="btn btn-primary" id="btn-confirm" disabled>このキャラで戦う！</button>
+    </div>
+  </section>
+
+  <!-- 3. 対戦画面 -->
+  <section class="screen screen-battle" id="screen-battle" hidden>
+    <div class="hud">
+      <div class="hud-side" id="hud-player"></div>
+      <div class="hud-center">
+        <div class="gauge" id="gauge"><div class="gauge-fill" id="gauge-fill"></div></div>
+        <div class="gauge-label" id="gauge-label">しんどう</div>
+      </div>
+      <div class="hud-side hud-right" id="hud-opponent"></div>
+    </div>
+
+    <div class="stage">
+      <canvas id="dohyo"></canvas>
+      <div class="overlay" id="overlay" hidden></div>
+    </div>
+
+    <p class="hint">土俵をトントン！　連打よりタイミング。</p>
+    <p class="hint hint-sub">※ 土俵の上だけ人工重力あり</p>
+  </section>
+
+  <!-- 4. 結果 -->
+  <div class="modal" id="result-modal" hidden>
+    <div class="modal-box">
+      <p class="result-reason" id="result-reason"></p>
+      <h2 class="result-title" id="result-title"></h2>
+      <p class="result-line" id="result-line" hidden></p>
+      <div class="modal-buttons">
+        <button class="btn btn-primary" id="btn-rematch">もう一度</button>
+        <button class="btn btn-ghost" id="btn-change">キャラクターを変える</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/behaviors.js"></script>
+<script src="js/characters.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/space.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
