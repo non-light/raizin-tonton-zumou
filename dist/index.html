@@ -1262,9 +1262,11 @@ var KIMARITE = [
     special: true,                       // 専用の見せかたをする
     only: 'moriken',                     // このキャラが勝ったときだけ
     when: function (c) {
-      return c.winnerTravel < 190          // 勝った側がほとんど動いていない
-          && c.loserContact > 0.30         // 相手とは触れていた
-          && c.loserExitSpeed < 260;       // 派手に吹っ飛んだわけでもない
+      // 「相手はほとんど動いていないのに、自分だけ動かされて出た」形かどうか。
+      // 接触の長さで見ると、押し合いが続かない試合では一度も出なくなるため、
+      // 動いた距離の差で判定する。
+      return c.winnerTravel < c.loserTravel * 0.60   // 勝った側の移動が明らかに少ない
+          && c.loserExitSpeed < 320;                 // 派手に吹っ飛んだわけではない
     }
   },
   {
