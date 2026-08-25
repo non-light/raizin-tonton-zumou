@@ -40,6 +40,27 @@ Fighter.prototype.reset = function (x, y, facing) {
   this.state = 'fight';             // 'fight' | 'out' | 'down'
   this.stateTime = 0;
   this.loseReason = null;
+
+  // --- 決まり手の判定に使う記録 ---
+  this.contact = false;             // いま相手と接触しているか
+  this.contactTotal = 0;            // 接触していた合計秒数
+  this.contactRecent = 0;           // 接触が途切れてからの秒数
+  this.pushedTotal = 0;             // 押し込まれた合計量
+  this.lastHitSpeed = 0;            // 直近の衝突の相対速度
+  this.travel = 0;                  // 動いた距離の合計
+  this.exitSpeed = 0;               // 場外に出た瞬間の速さ
+  this.edgeTimer = 0;               // 土俵際でふんばっている秒数
+  this.edging = false;
+};
+
+/** 押し合いでの実効的な重さ（押されにくさ） */
+Fighter.prototype.holdMass = function () {
+  return this.stats.weight * (this.stats.pushResist || 1);
+};
+
+/** 押し込む力 */
+Fighter.prototype.shovePower = function () {
+  return this.stats.weight * (this.stats.pushPower || 1) * (this.isGrounded() ? 1 : 0.35);
 };
 
 Fighter.prototype.isGrounded = function () { return this.z <= 0.001; };
@@ -87,6 +108,8 @@ Fighter.prototype.applyVibration = function (tapX, tapY, scale, selfShake, energ
   // 受け取る量 ＝ 反応 × 移動性 ÷（重さ × 押されにくさ）
   var take = (s.vibrationResponse * s.movementSpeed) /
              (s.weight * s.knockbackResistance) * sideways * scale * contact;
+  // 土俵際でふんばっているところへの追撃は効きやすい
+  if (this.edging) take *= EDGE.tapVuln;
 
   var ix = nx * PHYS.tapImpulse * take;
   var iy = ny * PHYS.tapImpulse * take;
@@ -194,7 +217,24 @@ Fighter.prototype.step = function (dt, env) {
                (dist / WORLD.radius - PHYS.gripStart) / (1 - PHYS.gripStart);
     extraDamp += PHYS.edgeGrip * (0.6 + 0.4 * s.stability) * Math.min(1, grip);
   }
-  // 雷神の「ふんばり」。耐えている短いあいだだけ摩擦が上がる。
+  // --- 土俵際のふんばり（全キャラ共通）---
+  // すぐには落ちず、短いあいだ粘る。ただし時間切れになれば落ちる。
+  var outward = dist > 0.001 ? (this.vx * this.x + this.vy * this.y) / dist : 0;
+  this.edging = false;
+  if (grounded && dist > WORLD.radius * EDGE.start && outward > 4) {
+    if (this.edgeTimer < EDGE.maxTime) {
+      this.edging = true;
+      this.edgeTimer += dt;
+      var left = 1 - this.edgeTimer / EDGE.maxTime;      // 粘りは尽きていく
+      extraDamp += EDGE.grip * left * (0.6 + 0.4 * s.stability);
+      this.vx -= (this.x / dist) * EDGE.rebound * left * dt;
+      this.vy -= (this.y / dist) * EDGE.rebound * left * dt;
+      this.vx += (Math.random() * 2 - 1) * EDGE.shiver * dt;
+      this.vy += (Math.random() * 2 - 1) * EDGE.shiver * dt;
+    }
+  } else if (dist < WORLD.radius * (EDGE.start - 0.06)) {
+    this.edgeTimer = 0;
+  }
   if (this.motion) extraDamp += this.motion.gripBoost();
 
   // --- 振動が続いているあいだの細かいガタつき ---
@@ -222,8 +262,11 @@ Fighter.prototype.step = function (dt, env) {
   this.tiltVel += acc * dt;
   this.tilt += this.tiltVel * dt;
 
-  this.x += this.vx * dt;
-  this.y += this.vy * dt;
+  var mx = this.vx * dt, my = this.vy * dt;
+  this.x += mx;
+  this.y += my;
+  this.travel += Math.sqrt(mx * mx + my * my);
+  this.contactRecent += dt;
 };
 
 /** 転倒／場外の判定。負けたら理由を返す。 */
@@ -251,53 +294,96 @@ Fighter.prototype.launchIntoSpace = function (dist) {
   this.state = 'out';
   this.stateTime = 0;
   this.driftScale = 1;
+  this.exitSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
   this.vx += (this.x / d) * PHYS.driftKick;
   this.vy += (this.y / d) * PHYS.driftKick;
   this.vz = PHYS.driftRise;
   this.spin = (Math.random() < 0.5 ? -1 : 1) * (1.4 + Math.random() * 1.5);
 };
 
-/** 力士同士の衝突 */
-function resolveCollision(a, b) {
-  if (a.state !== 'fight' || b.state !== 'fight') return false;
+/**
+ * 力士同士のぶつかり合い。
+ * すり抜けさせず、接触が続いているあいだは「押し合い」を続ける。
+ * 毎フレーム爆発的な力を加えないよう、重なりの解消も反発も上限をつけてある。
+ */
+function resolveCollision(a, b, dt) {
+  if (a.state !== 'fight' || b.state !== 'fight') { a.contact = b.contact = false; return 0; }
 
   var dx = b.x - a.x, dy = b.y - a.y;
   var dist = Math.sqrt(dx * dx + dy * dy);
   var minD = a.radius + b.radius;
-  if (dist >= minD || dist === 0) return false;
+  if (dist >= minD) { a.contact = b.contact = false; return 0; }
 
+  if (dist < 0.0001) { dx = 1; dy = 0; dist = 0.0001; }
   var nx = dx / dist, ny = dy / dist;
-  var wa = a.stats.weight, wb = b.stats.weight;
-  var total = wa + wb;
 
-  // 重なりを解消（軽いほうが多く押される）
+  var ma = a.holdMass(), mb = b.holdMass();
+  var total = ma + mb;
+
+  // --- 1. 重なりの解消。重い側はあまり動かない。速度は決められた上限まで。 ---
   var overlap = minD - dist;
-  a.x -= nx * overlap * (wb / total);
-  a.y -= ny * overlap * (wb / total);
-  b.x += nx * overlap * (wa / total);
-  b.y += ny * overlap * (wa / total);
+  var sep = Math.min(overlap, PUSH.separate * dt);
+  a.x -= nx * sep * (mb / total);
+  a.y -= ny * sep * (mb / total);
+  b.x += nx * sep * (ma / total);
+  b.y += ny * sep * (ma / total);
 
-  // 近づいているときだけ弾く
+  a.contact = b.contact = true;
+  a.contactTotal += dt; b.contactTotal += dt;
+  a.contactRecent = b.contactRecent = 0;
+
+  // --- 2. 押し合い。押す力の差で、じりじりと押し込まれる。 ---
+  var net = (a.shovePower() - b.shovePower()) * PUSH.grind;
+  b.vx += nx * net * dt / mb;
+  b.vy += ny * net * dt / mb;
+  a.vx -= nx * net * dt / ma;
+  a.vy -= ny * net * dt / ma;
+  if (net > 0) b.pushedTotal += net * dt / mb; else a.pushedTotal += -net * dt / ma;
+
+  // 押し合っているあいだの小刻みな揺れ
+  var jt = PUSH.grindJitter * dt;
+  a.vx += (Math.random() * 2 - 1) * jt; a.vy += (Math.random() * 2 - 1) * jt;
+  b.vx += (Math.random() * 2 - 1) * jt; b.vy += (Math.random() * 2 - 1) * jt;
+
+  // --- 3. 近づいているときだけ弾く ---
   var rvn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-  if (rvn > 0) return false;
+  if (rvn >= 0) return 0;
 
-  var e = PHYS.hitRestitution * (1 + (a.stats.bounce + b.stats.bounce) * 0.5) * 0.5 + 0.2;
-  var j = -(1 + e) * rvn / (1 / wa + 1 / wb);
+  var e = PUSH.restitution * ((a.stats.bounceBack + b.stats.bounceBack) * 0.5);
+  var j = -(1 + e) * rvn / (1 / ma + 1 / mb);
+  j = Math.min(j, PUSH.maxImpulse);
 
-  a.vx -= nx * j / wa; a.vy -= ny * j / wa;
-  b.vx += nx * j / wb; b.vy += ny * j / wb;
+  a.vx -= nx * j / ma; a.vy -= ny * j / ma;
+  b.vx += nx * j / mb; b.vy += ny * j / mb;
+
+  var speed = -rvn;
+  a.lastHitSpeed = b.lastHitSpeed = speed;
 
   // ぶつかった衝撃で姿勢も崩れる
-  var t = Math.abs(j) * PHYS.hitTilt;
+  var t = j * PUSH.tilt;
   a.tiltVel -= nx * t / a.stats.stability;
   b.tiltVel += nx * t / b.stats.stability;
 
-  // 少し浮く
-  if (a.motion) a.motion.onImpact(a, Math.abs(j) / 260);
-  if (b.motion) b.motion.onImpact(b, Math.abs(j) / 260);
+  var hop = j * PUSH.hop;
+  if (a.isGrounded()) a.vz += hop * a.stats.bounce / ma;
+  if (b.isGrounded()) b.vz += hop * b.stats.bounce / mb;
 
-  var hop = Math.abs(j) * PHYS.hitHop;
-  if (a.isGrounded()) a.vz += hop * a.stats.bounce / wa;
-  if (b.isGrounded()) b.vz += hop * b.stats.bounce / wb;
-  return true;
+  if (a.motion) a.motion.onImpact(a, speed / 260);
+  if (b.motion) b.motion.onImpact(b, speed / 260);
+  return speed;
+}
+
+/** 接触中にトントンが入ったとき、相手を押し込む（直接攻撃ではなく押し合いの後押し） */
+function shoveOnContact(me, other, power) {
+  if (!me.contact || me.state !== 'fight' || other.state !== 'fight') return 0;
+  var dx = other.x - me.x, dy = other.y - me.y;
+  var d = Math.sqrt(dx * dx + dy * dy) || 1;
+  var f = PUSH.tapShove * power * (me.stats.pushPower || 1);
+  other.vx += (dx / d) * f / other.holdMass();
+  other.vy += (dy / d) * f / other.holdMass();
+  other.tiltVel += (dx / d) * f * 0.0035 / other.stats.stability;
+  me.vx -= (dx / d) * f * 0.25 / me.holdMass();
+  me.vy -= (dy / d) * f * 0.25 / me.holdMass();
+  other.pushedTotal += f / other.holdMass();
+  return f;
 }

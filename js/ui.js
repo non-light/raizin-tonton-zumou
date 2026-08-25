@@ -352,11 +352,17 @@ var UI = (function () {
 
   function onFinish(result) {
     clearTimers();   // 開始演出の後始末が残っていても勝利表示を消させない
-    // まず中央に大きく「勝負あり！」。そのあいだ勝者だけが土俵に残る。
+    // 1. 勝負あり！ → 2. 決まり手 → 3. 結果画面 の順に、少し間を置いて見せる
     banner(result.draw ? '引き分け！' : '勝負あり！', 'win');
+    var k = result.kimarite;
     later(function () {
-      el.overlay.hidden = true;
-      showResult(result);
+      if (!k) { el.overlay.hidden = true; showResult(result); return; }
+      if (k.special) game.pressure();          // 「圧」は静かに特別扱い
+      banner('決まり手：' + k.name, k.special ? 'kimarite atsu' : 'kimarite');
+      later(function () {
+        el.overlay.hidden = true;
+        showResult(result);
+      }, k.special ? FLOW.kimariteSpecial : FLOW.kimarite);
     }, FLOW.winBanner);
   }
 
@@ -371,15 +377,19 @@ var UI = (function () {
       el.resultLine.textContent = '';
       el.resultLine.hidden = true;
     } else {
-      el.resultReason.textContent = result.reason === 'out'
+      var why = result.reason === 'out'
         ? displayName(result.loser.character) + ' は宇宙の彼方へ！'
         : displayName(result.loser.character) + ' がたおれた！';
+      if (result.kimarite) why = '決まり手：' + result.kimarite.name + '　　' + why;
+      el.resultReason.textContent = why;
       el.resultTitle.textContent = displayName(result.winner.character) + ' の勝ち！';
 
       // 自分のキャラのひとこと（勝ったか負けたかで変わる）。
-      // 相手側にしゃべらせたいときは、ここで参照する力士を入れ替えるだけでよい。
+      // 決まり手ごとの専用セリフがあればそちらを優先する。
       var mine = result.winner.role === 'player' ? result.winner : result.loser;
-      var line = getReaction(mine.character, mine === result.winner) ||
+      var won = mine === result.winner;
+      var line = getKimariteLine(result, mine.character, won) ||
+                 getReaction(mine.character, won) ||
                  getReaction(result.winner.character, true);
       el.resultLine.textContent = line ? '「' + line + '」' : '';
       el.resultLine.hidden = !line;

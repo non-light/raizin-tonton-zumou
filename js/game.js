@@ -14,6 +14,7 @@ function Game(canvas, hooks) {
 
   this.energy = 0;          // 溜まっている振動 0..VIBE.max
   this.frozen = false;      // 開始演出のあいだは土俵を止めておく
+  this.hitCool = 0;         // 衝突演出の連発防止
   this.phase = 'idle';      // 'idle' | 'intro' | 'live' | 'outro'
   this.result = null;
   this.nudgeTimer = 0;
@@ -47,8 +48,12 @@ Game.prototype.setup = function (playerChar, opponentChar) {
 /** 同じ組み合わせのまま状態だけ初期化する */
 Game.prototype.reset = function () {
   var jitter = function (n) { return (Math.random() * 2 - 1) * n; };
-  this.player.reset(-74 + jitter(14), 20 + jitter(16), 1);
-  this.opponent.reset(74 + jitter(14), -20 + jitter(16), -1);
+  // 立ち合い。相撲と同じで、最初から中央で向かい合わせる。
+  // 半径の合計をわずかに超える間隔にしておくと、すぐに組み合いになる。
+  var reach = this.player.radius + this.opponent.radius;
+  var gap = reach * 0.47;                 // 中心からの距離（間隔は約 reach×0.94＝軽く組んだ状態）
+  this.player.reset(-gap + jitter(5), 7 + jitter(5), 1);
+  this.opponent.reset(gap + jitter(5), -7 + jitter(5), -1);
   this.energy = 0;
   this.result = null;
   this.nudgeTimer = 0.8;
@@ -83,6 +88,21 @@ Game.prototype.setBackdrop = function (path) { this.renderer.setBackdrop(path); 
 
 /** 地響き（土俵が小さく揺れる） */
 Game.prototype.rumble = function (v) { this.renderer.rumble = Math.max(this.renderer.rumble, v); };
+
+/** 決まり手「圧」の静かな演出（派手にしない） */
+Game.prototype.pressure = function () {
+  var r = this.renderer;
+  r.darken = 0.45;
+  r.rumble = 0.8;
+  Sound.boom();
+  var self = this;
+  var t0 = performance.now();
+  (function ease() {
+    var k = Math.min(1, (performance.now() - t0) / 900);
+    r.darken = 0.45 * (1 - k);
+    if (k < 1) requestAnimationFrame(ease);
+  })();
+};
 
 /** 金の招き猫イベント用の光 */
 Game.prototype.goldFlash = function () {
@@ -141,6 +161,10 @@ Game.prototype.tap = function (px, py) {
   }
 
   // 宇宙らしい小さな演出。物理挙動が見えなくならない程度に留める。
+  // 相手と組んでいるときのトントンは、押し込みの後押しになる
+  // （クリックが直接相手を殴るのではなく、振動→自分の踏み込み→相手へ伝わる）
+  shoveOnContact(this.player, this.opponent, 0.5 + this.energy * 0.7);
+
   this.renderer.addRipple(w.x, w.y, 0.6 + this.energy * 0.7);
   this.renderer.addShake(-w.x, -w.y, 0.5 + this.energy * 0.6);
   this.renderer.addSparks(w.x, w.y, this.energy);
@@ -163,6 +187,7 @@ Game.prototype.emitEnergy = function () {
 Game.prototype.update = function (dt) {
   if (this.phase === 'idle') return;
   if (this.frozen) return;      // 「のこった！」までは土俵も力士も動かさない
+  this.hitCool = Math.max(0, this.hitCool - dt);
 
   // 振動は時間とともに収まる
   if (this.energy > 0) {
@@ -191,9 +216,15 @@ Game.prototype.update = function (dt) {
   var envP = { energy: this.energy, opponent: this.opponent };
   var envO = { energy: this.energy, opponent: this.player };
   for (var s = 0; s < steps; s++) {
+    // 「寄り」は両者に同じものを適用する（差が出るのはキャラの aggression だけ）
+    if (this.phase === 'live') {
+      stepAI(this.player, this.opponent, this.energy, h);
+      stepAI(this.opponent, this.player, this.energy, h);
+    }
     this.player.step(h, envP);
     this.opponent.step(h, envO);
-    resolveCollision(this.player, this.opponent);
+    var hit = resolveCollision(this.player, this.opponent, h);
+    if (hit > PUSH.effectSpeed) this.onBigHit(hit);
   }
 
   this.updateFacing();
@@ -210,6 +241,19 @@ Game.prototype.update = function (dt) {
       if (this.hooks.onFinish) this.hooks.onFinish(this.result);
     }
   }
+};
+
+/** 強くぶつかったときだけ演出を出す */
+Game.prototype.onBigHit = function (speed) {
+  if (this.hitCool > 0) return;
+  this.hitCool = 0.22;
+  var k = Math.min(1, speed / 380);
+  var mx = (this.player.x + this.opponent.x) / 2;
+  var my = (this.player.y + this.opponent.y) / 2;
+  this.renderer.addSparks(mx, my, 0.5 + k);
+  this.renderer.addShake(this.opponent.x - this.player.x, this.opponent.y - this.player.y, 0.5 + k * 0.7);
+  this.renderer.space.shake(0.25 + k * 0.35);
+  Sound.thud(k);
 };
 
 /** 相手のほうを向く（見た目だけ。挙動には影響しない） */
@@ -251,4 +295,5 @@ Game.prototype.checkResult = function () {
   } else {
     this.result = { winner: this.opponent, loser: this.player, reason: pl };
   }
+  this.result.kimarite = judgeKimarite(this.result);
 };

@@ -103,5 +103,21 @@ var Sound = (function () {
     o.start(t); o.stop(t + 0.8);
   }
 
-  return { tap: tap, reveal: reveal, shakin: shakin, omen: omen, boom: boom };
+  /** ぶつかったときの「ドン！」 */
+  function thud(power) {
+    var ac = ensure(); if (!ac) return;
+    if (ac.state === 'suspended') ac.resume();
+    var t = ac.currentTime, p = Math.min(1, power || 0.5);
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(190 - p * 50, t);
+    o.frequency.exponentialRampToValueAtTime(58, t + 0.16);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16 + p * 0.18, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.30);
+    o.connect(g).connect(ac.destination);
+    o.start(t); o.stop(t + 0.34);
+  }
+
+  return { tap: tap, reveal: reveal, shakin: shakin, omen: omen, boom: boom, thud: thud };
 })();
