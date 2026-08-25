@@ -8,7 +8,7 @@ var UI = (function () {
   var el = {};
   var game = null;
   var timers = [];
-  var state = { playerChar: null, opponentChar: null, bossAnnounce: null };
+  var state = { playerChar: null, opponentChar: null };
 
   function $(id) { return document.getElementById(id); }
 

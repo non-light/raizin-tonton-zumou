@@ -512,7 +512,9 @@ var PHYS = {
 
   tapImpulse: 13,       // トントン1回で伝わる水平方向の力の基準値
   tapHop: 130,           // トントン1回で伝わる垂直方向（跳ね）の基準値
-  tapFalloff: 78,       // 叩いた位置からこの距離で力がおよそ半分になる
+  tapFalloff: 40,        // 叩いた位置からこの距離で力がおよそ半分になる。
+                         // 広いと、狙った相手だけでなく自分のキャラまで押されて
+                         // 軽いキャラが勝手に土俵際へ流れてしまう
   tapDeadZone: 6,        // 真下すぎると横には押されない（まっすぐ跳ね上がるだけ）
   aimRange: 78,          // 力士のこの距離内を叩くと「その力士を狙った」とみなす
   aimAssist: 0.70,       // 狙われた力士は、土俵の外向きに押される割合
@@ -530,7 +532,9 @@ var PHYS = {
   edgeGrip: 3.0,         // 「踏ん張り」。土俵の外側ほど足を踏ん張って止まりやすくなる
   gripStart: 0.35,       // 土俵半径のこの割合までは踏ん張りが働かない
 
-  ambient: 120,          // 振動が続いているあいだの細かいガタつき（毎回の展開が変わる要因）
+  ambient: 65,           // 振動が続いているあいだの細かいガタつき（毎回の展開が変わる要因）
+                         // 大きくすると軽いキャラだけが勝手に土俵際へ流されて
+                         // 使い物にならなくなるので、控えめにしてある
   bounceLoss: 0.32,      // 着地時の反発の残り具合（× 跳ねやすさ）
 
   driftKick: 55,         // 場外に出た瞬間、宇宙へ押し出される勢い
@@ -599,13 +603,12 @@ var FLOW = {
 
 /* ===== js/progress.js ===== */
 /* =========================================================================
- * progress.js — 進行状況とボスの出現条件
+ * progress.js — 進行状況とCPUの抽選
  *
  * ボス・隠しキャラクターは選択画面には並ばない。
- * 対戦相手を選んだあと、下の ENCOUNTERS を上から順に見て、
- * 条件に当てはまったものが「特別な対戦相手」として割り込む。
- *
- * 出現条件を増やしたいときは ENCOUNTERS に1件足すだけでよい。
+ * 対戦相手は毎回この中の pickCpuCharacter() が重み付きで選ぶ。
+ * 確率も出現条件も characters.js 側（cpuWeight / unlockCondition）にあるので、
+ * ここには個別のキャラクター名も確率も書かない。
  * ========================================================================= */
 
 var Progress = (function () {
@@ -1297,17 +1300,19 @@ var KIMARITE = [
   {
     id: 'tsukidashi',
     name: '突き出し',
-    when: function (c) { return c.lastHitSpeed > 190 && c.sinceContact < 1.1; }
-  },
-  {
-    id: 'oshidashi',
-    name: '押し出し',
-    when: function (c) { return c.loserContact > 0.22 && c.sinceContact < 1.6; }
+    when: function (c) { return c.lastHitSpeed > 110 && c.sinceContact < 1.5; }
   },
   {
     id: 'jimetsu',
     name: '自滅',
-    when: function () { return true; }   // どれにも当てはまらなければ自滅
+    // 自分から跳んで土俵の外へ出た形。カエルやうさぎがよくやる。
+    when: function (c) { return c.loserAirborne; }
+  },
+  {
+    id: 'oshidashi',
+    name: '押し出し',
+    // このゲームのふつうの勝ちかた。土俵を叩いて外へ押し出した形。
+    when: function () { return true; }
   }
 ];
 
@@ -1324,6 +1329,7 @@ function judgeKimarite(result) {
     lastHitSpeed: l.lastHitSpeed,
     loserExitSpeed: l.exitSpeed,
     loserSpin: l.spin,
+    loserAirborne: l.exitAirborne,
     reason: result.reason
   };
   // 転倒での決着は、押し合いがあったかどうかで分ける
@@ -1373,7 +1379,11 @@ function getKimariteLine(result, character, won) {
  * stability           安定性。大きいほど姿勢が戻りやすく転びにくい
  * vibrationResponse   振動への反応。大きいほど土俵の揺れをよく拾う
  * movementSpeed       移動性。大きいほど一度の振動で速く動く
- * knockbackResistance 押されにくさ。大きいほど吹っ飛びにくい
+ * knockbackResistance 押されにくさ。大きいほど吹っ飛びにくい。
+ *                     ここは「土俵の揺れで押される量」だけを調整する数値。
+ *                     組み合いの強さは pushResist、慣性は weight が担当する。
+ *                     重量級でも 1.0 未満にしてあるのは、押し出すのに30秒以上
+ *                     かかって間延びしていたため（軽量級は逆に上げてある）。
  * specialBehavior     特殊挙動。behaviors.js のキー名。null なら癖なし
  * motionSet           専用モーション（motions.js のキー名）。省略時は1枚絵
  * kimariteLines       特定の決まり手のときだけ出す一言。省略可
@@ -1401,7 +1411,7 @@ var CHARACTERS = [
     color: '#6d5bd0', size: { w: 106, h: 108 }, radius: 42,
     pushPower: 1.10, pushResist: 1.00, bounceBack: 0.55, aggression: 0.55,
     weight: 1.00, friction: 1.00, bounce: 1.00, stability: 1.05,
-    vibrationResponse: 1.00, movementSpeed: 1.00, knockbackResistance: 1.00,
+    vibrationResponse: 1.00, movementSpeed: 1.00, knockbackResistance: 1,
     specialBehavior: 'balanced',
     /* 雷神だけ専用モーション（motions.js）。他キャラは1枚絵のまま。 */
     motionSet: 'raijin',
@@ -1424,7 +1434,7 @@ var CHARACTERS = [
     color: '#31313b', size: { w: 70, h: 104 }, radius: 28,
     pushPower: 0.55, pushResist: 0.55, bounceBack: 1.55, aggression: 0.95,
     weight: 0.75, friction: 0.78, bounce: 1.75, stability: 0.85,
-    vibrationResponse: 1.30, movementSpeed: 1.15, knockbackResistance: 1.00,
+    vibrationResponse: 1.30, movementSpeed: 1.15, knockbackResistance: 1.25,
     specialBehavior: 'featherweight',
     cpuEnabled: true, cpuWeight: 10,
     outCry: 'にゃーーー！',
@@ -1443,7 +1453,7 @@ var CHARACTERS = [
     color: '#8a94a3', size: { w: 74, h: 112 }, radius: 30,
     pushPower: 1.70, pushResist: 1.50, bounceBack: 0.30, aggression: 0.40,
     weight: 1.40, friction: 0.85, bounce: 0.35, stability: 1.45,
-    vibrationResponse: 0.68, movementSpeed: 0.92, knockbackResistance: 1.18,
+    vibrationResponse: 0.68, movementSpeed: 0.92, knockbackResistance: 0.55,
     specialBehavior: 'heavyweight',
     cpuEnabled: true, cpuWeight: 10,
     outCry: 'ピーーー……',
@@ -1462,7 +1472,7 @@ var CHARACTERS = [
     color: '#8a6242', size: { w: 67, h: 106 }, radius: 27,
     pushPower: 1.05, pushResist: 1.20, bounceBack: 0.55, aggression: 0.60,
     weight: 1.15, friction: 1.15, bounce: 0.85, stability: 1.20,
-    vibrationResponse: 0.92, movementSpeed: 0.92, knockbackResistance: 1.05,
+    vibrationResponse: 0.92, movementSpeed: 0.92, knockbackResistance: 0.9,
     specialBehavior: 'roundish',
     cpuEnabled: true, cpuWeight: 10,
     outCry: 'ぽんっ！',
@@ -1481,7 +1491,7 @@ var CHARACTERS = [
     color: '#8a6a45', size: { w: 63, h: 94 }, radius: 25,
     pushPower: 0.45, pushResist: 0.50, bounceBack: 1.45, aggression: 1.00,
     weight: 0.62, friction: 0.72, bounce: 1.60, stability: 0.95,
-    vibrationResponse: 1.25, movementSpeed: 1.10, knockbackResistance: 1.00,
+    vibrationResponse: 1.25, movementSpeed: 1.10, knockbackResistance: 1.28,
     specialBehavior: 'skittish',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ちゅん〜！',
@@ -1498,7 +1508,7 @@ var CHARACTERS = [
     color: '#6fbe5a', size: { w: 61, h: 100 }, radius: 24,
     pushPower: 0.85, pushResist: 0.85, bounceBack: 1.10, aggression: 0.70,
     weight: 0.95, friction: 1.00, bounce: 1.50, stability: 1.05,
-    vibrationResponse: 0.95, movementSpeed: 1.00, knockbackResistance: 1.00,
+    vibrationResponse: 0.95, movementSpeed: 1.00, knockbackResistance: 1,
     specialBehavior: 'suddenJump',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'げこーー！',
@@ -1515,7 +1525,7 @@ var CHARACTERS = [
     color: '#d94a3d', size: { w: 85, h: 94 }, radius: 34,
     pushPower: 1.20, pushResist: 1.10, bounceBack: 0.60, aggression: 0.75,
     weight: 1.05, friction: 1.05, bounce: 0.65, stability: 1.20,
-    vibrationResponse: 1.05, movementSpeed: 1.05, knockbackResistance: 1.00,
+    vibrationResponse: 1.05, movementSpeed: 1.05, knockbackResistance: 1.02,
     specialBehavior: 'sideways',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'シャキーン！',
@@ -1532,7 +1542,7 @@ var CHARACTERS = [
     color: '#4a8f3f', size: { w: 70, h: 100 }, radius: 28,
     pushPower: 1.00, pushResist: 1.60, bounceBack: 0.30, aggression: 0.18,
     weight: 1.55, friction: 1.25, bounce: 0.25, stability: 1.65,
-    vibrationResponse: 0.70, movementSpeed: 0.85, knockbackResistance: 1.05,
+    vibrationResponse: 0.70, movementSpeed: 0.85, knockbackResistance: 0.50,
     specialBehavior: 'lowCenter',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'こうらーー！',
@@ -1549,7 +1559,7 @@ var CHARACTERS = [
     color: '#f0ece4', size: { w: 63, h: 110 }, radius: 25,
     pushPower: 0.70, pushResist: 0.70, bounceBack: 1.20, aggression: 0.80,
     weight: 0.75, friction: 0.95, bounce: 1.60, stability: 0.90,
-    vibrationResponse: 1.05, movementSpeed: 0.95, knockbackResistance: 1.00,
+    vibrationResponse: 1.05, movementSpeed: 0.95, knockbackResistance: 1.11,
     specialBehavior: 'bigJump',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ぴょーん！',
@@ -1566,7 +1576,7 @@ var CHARACTERS = [
     color: '#d0483c', size: { w: 90, h: 110 }, radius: 36,
     pushPower: 0.95, pushResist: 1.35, bounceBack: 0.45, aggression: 0.60,
     weight: 0.95, friction: 1.30, bounce: 0.60, stability: 0.70,
-    vibrationResponse: 1.05, movementSpeed: 0.90, knockbackResistance: 1.05,
+    vibrationResponse: 1.05, movementSpeed: 0.90, knockbackResistance: 1.03,
     specialBehavior: 'squishy',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ぬるん……',
@@ -1583,7 +1593,7 @@ var CHARACTERS = [
     color: '#cf3b2f', size: { w: 76, h: 104 }, radius: 30,
     pushPower: 1.15, pushResist: 0.90, bounceBack: 0.95, aggression: 0.85,
     weight: 1.25, friction: 0.55, bounce: 0.80, stability: 1.35,
-    vibrationResponse: 0.95, movementSpeed: 1.20, knockbackResistance: 0.95,
+    vibrationResponse: 0.95, movementSpeed: 1.20, knockbackResistance: 0.93,
     specialBehavior: 'roll',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ころころ〜',
@@ -1600,7 +1610,7 @@ var CHARACTERS = [
     color: '#c9a06a', size: { w: 72, h: 100 }, radius: 29,
     pushPower: 1.00, pushResist: 1.00, bounceBack: 0.85, aggression: 0.65,
     weight: 1.05, friction: 1.00, bounce: 0.90, stability: 1.10,
-    vibrationResponse: 1.00, movementSpeed: 1.00, knockbackResistance: 1.00,
+    vibrationResponse: 1.00, movementSpeed: 1.00, knockbackResistance: 0.98,
     specialBehavior: 'curlUp',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'まるまる〜！',
@@ -1617,7 +1627,7 @@ var CHARACTERS = [
     color: '#e8e6e0', size: { w: 75, h: 104 }, radius: 30,
     pushPower: 0.45, pushResist: 0.50, bounceBack: 0.90, aggression: 0.85,
     weight: 0.70, friction: 0.80, bounce: 1.10, stability: 0.95,
-    vibrationResponse: 1.20, movementSpeed: 1.05, knockbackResistance: 1.00,
+    vibrationResponse: 1.20, movementSpeed: 1.05, knockbackResistance: 1.22,
     specialBehavior: 'floaty',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ひゅ〜〜',
@@ -2109,6 +2119,7 @@ Fighter.prototype.reset = function (x, y, facing) {
   this.lastHitSpeed = 0;            // 直近の衝突の相対速度
   this.travel = 0;                  // 動いた距離の合計
   this.exitSpeed = 0;               // 場外に出た瞬間の速さ
+  this.exitAirborne = false;        // 場外に出た瞬間、浮いていたか
   this.edgeTimer = 0;               // 土俵際でふんばっている秒数
   this.edging = false;
 };
@@ -2372,6 +2383,7 @@ Fighter.prototype.launchIntoSpace = function (dist) {
   this.stateTime = 0;
   this.driftScale = 1;
   this.exitSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+  this.exitAirborne = this.z > 30;     // はっきり跳んで出たときだけ「自滅」扱いにする
   this.vx += (this.x / d) * PHYS.driftKick;
   this.vy += (this.y / d) * PHYS.driftKick;
   this.vz = PHYS.driftRise;
@@ -3465,7 +3477,7 @@ var UI = (function () {
   var el = {};
   var game = null;
   var timers = [];
-  var state = { playerChar: null, opponentChar: null, bossAnnounce: null };
+  var state = { playerChar: null, opponentChar: null };
 
   function $(id) { return document.getElementById(id); }
 

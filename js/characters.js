@@ -25,7 +25,11 @@
  * stability           安定性。大きいほど姿勢が戻りやすく転びにくい
  * vibrationResponse   振動への反応。大きいほど土俵の揺れをよく拾う
  * movementSpeed       移動性。大きいほど一度の振動で速く動く
- * knockbackResistance 押されにくさ。大きいほど吹っ飛びにくい
+ * knockbackResistance 押されにくさ。大きいほど吹っ飛びにくい。
+ *                     ここは「土俵の揺れで押される量」だけを調整する数値。
+ *                     組み合いの強さは pushResist、慣性は weight が担当する。
+ *                     重量級でも 1.0 未満にしてあるのは、押し出すのに30秒以上
+ *                     かかって間延びしていたため（軽量級は逆に上げてある）。
  * specialBehavior     特殊挙動。behaviors.js のキー名。null なら癖なし
  * motionSet           専用モーション（motions.js のキー名）。省略時は1枚絵
  * kimariteLines       特定の決まり手のときだけ出す一言。省略可
@@ -53,7 +57,7 @@ var CHARACTERS = [
     color: '#6d5bd0', size: { w: 106, h: 108 }, radius: 42,
     pushPower: 1.10, pushResist: 1.00, bounceBack: 0.55, aggression: 0.55,
     weight: 1.00, friction: 1.00, bounce: 1.00, stability: 1.05,
-    vibrationResponse: 1.00, movementSpeed: 1.00, knockbackResistance: 1.00,
+    vibrationResponse: 1.00, movementSpeed: 1.00, knockbackResistance: 1,
     specialBehavior: 'balanced',
     /* 雷神だけ専用モーション（motions.js）。他キャラは1枚絵のまま。 */
     motionSet: 'raijin',
@@ -76,7 +80,7 @@ var CHARACTERS = [
     color: '#31313b', size: { w: 70, h: 104 }, radius: 28,
     pushPower: 0.55, pushResist: 0.55, bounceBack: 1.55, aggression: 0.95,
     weight: 0.75, friction: 0.78, bounce: 1.75, stability: 0.85,
-    vibrationResponse: 1.30, movementSpeed: 1.15, knockbackResistance: 1.00,
+    vibrationResponse: 1.30, movementSpeed: 1.15, knockbackResistance: 1.25,
     specialBehavior: 'featherweight',
     cpuEnabled: true, cpuWeight: 10,
     outCry: 'にゃーーー！',
@@ -95,7 +99,7 @@ var CHARACTERS = [
     color: '#8a94a3', size: { w: 74, h: 112 }, radius: 30,
     pushPower: 1.70, pushResist: 1.50, bounceBack: 0.30, aggression: 0.40,
     weight: 1.40, friction: 0.85, bounce: 0.35, stability: 1.45,
-    vibrationResponse: 0.68, movementSpeed: 0.92, knockbackResistance: 1.18,
+    vibrationResponse: 0.68, movementSpeed: 0.92, knockbackResistance: 0.55,
     specialBehavior: 'heavyweight',
     cpuEnabled: true, cpuWeight: 10,
     outCry: 'ピーーー……',
@@ -114,7 +118,7 @@ var CHARACTERS = [
     color: '#8a6242', size: { w: 67, h: 106 }, radius: 27,
     pushPower: 1.05, pushResist: 1.20, bounceBack: 0.55, aggression: 0.60,
     weight: 1.15, friction: 1.15, bounce: 0.85, stability: 1.20,
-    vibrationResponse: 0.92, movementSpeed: 0.92, knockbackResistance: 1.05,
+    vibrationResponse: 0.92, movementSpeed: 0.92, knockbackResistance: 0.9,
     specialBehavior: 'roundish',
     cpuEnabled: true, cpuWeight: 10,
     outCry: 'ぽんっ！',
@@ -133,7 +137,7 @@ var CHARACTERS = [
     color: '#8a6a45', size: { w: 63, h: 94 }, radius: 25,
     pushPower: 0.45, pushResist: 0.50, bounceBack: 1.45, aggression: 1.00,
     weight: 0.62, friction: 0.72, bounce: 1.60, stability: 0.95,
-    vibrationResponse: 1.25, movementSpeed: 1.10, knockbackResistance: 1.00,
+    vibrationResponse: 1.25, movementSpeed: 1.10, knockbackResistance: 1.28,
     specialBehavior: 'skittish',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ちゅん〜！',
@@ -150,7 +154,7 @@ var CHARACTERS = [
     color: '#6fbe5a', size: { w: 61, h: 100 }, radius: 24,
     pushPower: 0.85, pushResist: 0.85, bounceBack: 1.10, aggression: 0.70,
     weight: 0.95, friction: 1.00, bounce: 1.50, stability: 1.05,
-    vibrationResponse: 0.95, movementSpeed: 1.00, knockbackResistance: 1.00,
+    vibrationResponse: 0.95, movementSpeed: 1.00, knockbackResistance: 1,
     specialBehavior: 'suddenJump',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'げこーー！',
@@ -167,7 +171,7 @@ var CHARACTERS = [
     color: '#d94a3d', size: { w: 85, h: 94 }, radius: 34,
     pushPower: 1.20, pushResist: 1.10, bounceBack: 0.60, aggression: 0.75,
     weight: 1.05, friction: 1.05, bounce: 0.65, stability: 1.20,
-    vibrationResponse: 1.05, movementSpeed: 1.05, knockbackResistance: 1.00,
+    vibrationResponse: 1.05, movementSpeed: 1.05, knockbackResistance: 1.02,
     specialBehavior: 'sideways',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'シャキーン！',
@@ -184,7 +188,7 @@ var CHARACTERS = [
     color: '#4a8f3f', size: { w: 70, h: 100 }, radius: 28,
     pushPower: 1.00, pushResist: 1.60, bounceBack: 0.30, aggression: 0.18,
     weight: 1.55, friction: 1.25, bounce: 0.25, stability: 1.65,
-    vibrationResponse: 0.70, movementSpeed: 0.85, knockbackResistance: 1.05,
+    vibrationResponse: 0.70, movementSpeed: 0.85, knockbackResistance: 0.50,
     specialBehavior: 'lowCenter',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'こうらーー！',
@@ -201,7 +205,7 @@ var CHARACTERS = [
     color: '#f0ece4', size: { w: 63, h: 110 }, radius: 25,
     pushPower: 0.70, pushResist: 0.70, bounceBack: 1.20, aggression: 0.80,
     weight: 0.75, friction: 0.95, bounce: 1.60, stability: 0.90,
-    vibrationResponse: 1.05, movementSpeed: 0.95, knockbackResistance: 1.00,
+    vibrationResponse: 1.05, movementSpeed: 0.95, knockbackResistance: 1.11,
     specialBehavior: 'bigJump',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ぴょーん！',
@@ -218,7 +222,7 @@ var CHARACTERS = [
     color: '#d0483c', size: { w: 90, h: 110 }, radius: 36,
     pushPower: 0.95, pushResist: 1.35, bounceBack: 0.45, aggression: 0.60,
     weight: 0.95, friction: 1.30, bounce: 0.60, stability: 0.70,
-    vibrationResponse: 1.05, movementSpeed: 0.90, knockbackResistance: 1.05,
+    vibrationResponse: 1.05, movementSpeed: 0.90, knockbackResistance: 1.03,
     specialBehavior: 'squishy',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ぬるん……',
@@ -235,7 +239,7 @@ var CHARACTERS = [
     color: '#cf3b2f', size: { w: 76, h: 104 }, radius: 30,
     pushPower: 1.15, pushResist: 0.90, bounceBack: 0.95, aggression: 0.85,
     weight: 1.25, friction: 0.55, bounce: 0.80, stability: 1.35,
-    vibrationResponse: 0.95, movementSpeed: 1.20, knockbackResistance: 0.95,
+    vibrationResponse: 0.95, movementSpeed: 1.20, knockbackResistance: 0.93,
     specialBehavior: 'roll',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ころころ〜',
@@ -252,7 +256,7 @@ var CHARACTERS = [
     color: '#c9a06a', size: { w: 72, h: 100 }, radius: 29,
     pushPower: 1.00, pushResist: 1.00, bounceBack: 0.85, aggression: 0.65,
     weight: 1.05, friction: 1.00, bounce: 0.90, stability: 1.10,
-    vibrationResponse: 1.00, movementSpeed: 1.00, knockbackResistance: 1.00,
+    vibrationResponse: 1.00, movementSpeed: 1.00, knockbackResistance: 0.98,
     specialBehavior: 'curlUp',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'まるまる〜！',
@@ -269,7 +273,7 @@ var CHARACTERS = [
     color: '#e8e6e0', size: { w: 75, h: 104 }, radius: 30,
     pushPower: 0.45, pushResist: 0.50, bounceBack: 0.90, aggression: 0.85,
     weight: 0.70, friction: 0.80, bounce: 1.10, stability: 0.95,
-    vibrationResponse: 1.20, movementSpeed: 1.05, knockbackResistance: 1.00,
+    vibrationResponse: 1.20, movementSpeed: 1.05, knockbackResistance: 1.22,
     specialBehavior: 'floaty',
     cpuEnabled: true, cpuWeight: 8,
     outCry: 'ひゅ〜〜',

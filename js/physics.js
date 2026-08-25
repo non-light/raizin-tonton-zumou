@@ -49,6 +49,7 @@ Fighter.prototype.reset = function (x, y, facing) {
   this.lastHitSpeed = 0;            // 直近の衝突の相対速度
   this.travel = 0;                  // 動いた距離の合計
   this.exitSpeed = 0;               // 場外に出た瞬間の速さ
+  this.exitAirborne = false;        // 場外に出た瞬間、浮いていたか
   this.edgeTimer = 0;               // 土俵際でふんばっている秒数
   this.edging = false;
 };
@@ -312,6 +313,7 @@ Fighter.prototype.launchIntoSpace = function (dist) {
   this.stateTime = 0;
   this.driftScale = 1;
   this.exitSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+  this.exitAirborne = this.z > 30;     // はっきり跳んで出たときだけ「自滅」扱いにする
   this.vx += (this.x / d) * PHYS.driftKick;
   this.vy += (this.y / d) * PHYS.driftKick;
   this.vz = PHYS.driftRise;

@@ -28,17 +28,19 @@ var KIMARITE = [
   {
     id: 'tsukidashi',
     name: '突き出し',
-    when: function (c) { return c.lastHitSpeed > 190 && c.sinceContact < 1.1; }
-  },
-  {
-    id: 'oshidashi',
-    name: '押し出し',
-    when: function (c) { return c.loserContact > 0.22 && c.sinceContact < 1.6; }
+    when: function (c) { return c.lastHitSpeed > 110 && c.sinceContact < 1.5; }
   },
   {
     id: 'jimetsu',
     name: '自滅',
-    when: function () { return true; }   // どれにも当てはまらなければ自滅
+    // 自分から跳んで土俵の外へ出た形。カエルやうさぎがよくやる。
+    when: function (c) { return c.loserAirborne; }
+  },
+  {
+    id: 'oshidashi',
+    name: '押し出し',
+    // このゲームのふつうの勝ちかた。土俵を叩いて外へ押し出した形。
+    when: function () { return true; }
   }
 ];
 
@@ -55,6 +57,7 @@ function judgeKimarite(result) {
     lastHitSpeed: l.lastHitSpeed,
     loserExitSpeed: l.exitSpeed,
     loserSpin: l.spin,
+    loserAirborne: l.exitAirborne,
     reason: result.reason
   };
   // 転倒での決着は、押し合いがあったかどうかで分ける
