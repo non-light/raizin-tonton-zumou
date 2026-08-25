@@ -2,7 +2,7 @@
 
 宇宙に浮かぶ土俵をトントンして戦う、ブラウザのトントン相撲。
 
-**遊ぶ:** https://non-light.github.io/raizin-tonton-zumou/
+**遊ぶ:** https://tonton.lightspirits.jp/
 
 ## 遊びかた
 土俵をクリック／タップするだけ。叩いた位置から振動が伝わって力士が動きます。
