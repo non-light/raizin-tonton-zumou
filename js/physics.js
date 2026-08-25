@@ -97,10 +97,25 @@ Fighter.prototype.applyVibration = function (tapX, tapY, scale, selfShake, energ
   var nx = 0, ny = 0;
   if (d > 0.0001) { nx = dx / d; ny = dy / d; }
 
+  // --- 狙い補助 ---
+  // 力士のすぐ近くを叩いたときは、「その力士を土俵の外へ押す」向きに寄せる。
+  // 叩いた位置から素直に押すだけだと、相手の真上を叩いても外へ出ず、
+  // 「どこを叩けばいいのか分からない」ゲームになってしまうため。
+  var self = Math.sqrt(this.x * this.x + this.y * this.y);
+  var aim = 1 - Math.min(1, d / PHYS.aimRange);
+  if (aim > 0 && self > 1) {
+    var mix = aim * PHYS.aimAssist;
+    var ox = this.x / self, oy = this.y / self;   // 土俵の中心から外へ向かう向き
+    nx = nx * (1 - mix) + ox * mix;
+    ny = ny * (1 - mix) + oy * mix;
+    var n = Math.sqrt(nx * nx + ny * ny) || 1;
+    nx /= n; ny /= n;
+  }
+
   // 叩いた場所から遠いほど弱くなる（＝どこを叩いたかで挙動が変わる）
   var falloff = 1 / (1 + (d / PHYS.tapFalloff) * (d / PHYS.tapFalloff));
   // 真下を叩かれたときは横には押されず、まっすぐ跳ね上がるだけになる
-  var sideways = falloff * Math.min(1, d / PHYS.tapDeadZone);
+  var sideways = falloff * Math.max(Math.min(1, d / PHYS.tapDeadZone), aim * 0.9);
   // 浮いているキャラには土俵の振動が伝わりにくい
   var contact = this.isGrounded() ? 1 : PHYS.airContact * this.mods.airContact;
 
@@ -108,6 +123,8 @@ Fighter.prototype.applyVibration = function (tapX, tapY, scale, selfShake, energ
   // 受け取る量 ＝ 反応 × 移動性 ÷（重さ × 押されにくさ）
   var take = (s.vibrationResponse * s.movementSpeed) /
              (s.weight * s.knockbackResistance) * sideways * scale * contact;
+  // 狙って叩かれたぶんの上乗せ
+  take *= 1 + aim * PHYS.aimBonus;
   // 土俵際でふんばっているところへの追撃は効きやすい
   if (this.edging) take *= EDGE.tapVuln;
 

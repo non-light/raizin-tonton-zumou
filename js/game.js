@@ -51,7 +51,9 @@ Game.prototype.reset = function () {
   // 立ち合い。相撲と同じで、最初から中央で向かい合わせる。
   // 半径の合計をわずかに超える間隔にしておくと、すぐに組み合いになる。
   var reach = this.player.radius + this.opponent.radius;
-  var gap = reach * 0.47;                 // 中心からの距離（間隔は約 reach×0.94＝軽く組んだ状態）
+  // 間隔は半径合計より少しだけ広く取る。重ねて始めると開始直後に
+  // 衝突解決が一気に働いて、軽いキャラが一瞬で吹っ飛んでしまう。
+  var gap = reach * 0.56;                 // 間隔は約 reach×1.12
   this.player.reset(-gap + jitter(5), 7 + jitter(5), 1);
   this.opponent.reset(gap + jitter(5), -7 + jitter(5), -1);
   this.energy = 0;
