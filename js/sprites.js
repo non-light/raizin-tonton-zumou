@@ -40,6 +40,13 @@ var Sprites = (function () {
       byPath(c.frontImage);
       if (c.backImage) byPath(c.backImage);
       if (c.thumbnailImage) byPath(c.thumbnailImage);
+      if (c.battleBackground) byPath(c.battleBackground);
+      var set = c.motionSet && MOTION_SETS[c.motionSet];
+      if (set) {
+        var k;
+        for (k in set.sprites) if (set.sprites.hasOwnProperty(k)) byPath(set.dir + set.sprites[k]);
+        for (k in set.effects) if (set.effects.hasOwnProperty(k)) byPath(set.dir + set.effects[k]);
+      }
     }
   }
 

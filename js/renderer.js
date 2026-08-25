@@ -451,12 +451,28 @@ Renderer.prototype.drawFighter = function (f) {
   var sx = (1 + f.squash * 0.22) * drift;
   var sy = (1 - f.squash * 0.22) * drift;
 
+  // 専用モーションを持つキャラ（雷神）は、状態に応じた絵を使う
+  var mo = f.motion, msp = null, off = null;
+  if (mo) {
+    msp = Sprites.byPath(mo.spritePath(f));
+    off = mo.offset();
+    if (msp.ready) {
+      // 正面の絵の高さを基準にして、どのポーズも同じ縮尺で描く
+      var base = Sprites.byPath(mo.path('front'));
+      var unit = (base.ready ? base.image.naturalHeight : msp.image.naturalHeight);
+      var k = (c.size.h * this.scale) / unit;
+      w = msp.image.naturalWidth * k;
+      h = msp.image.naturalHeight * k;
+    }
+  }
+
   ctx.save();
   ctx.globalAlpha = f.state === 'out' ? Math.max(0, Math.min(1, (drift - 0.18) / 0.5)) : 1;
-  ctx.translate(p.x, p.y);
+  ctx.translate(p.x + (off ? off.x * this.scale : 0), p.y + (off ? off.y * this.scale : 0));
   // tilt は姿勢、spinVisual は転がりなどの見た目だけの回転
-  ctx.rotate(f.tilt + f.spinVisual);
-  ctx.scale(sx * f.facing, sy);
+  ctx.rotate(f.tilt + f.spinVisual + (off ? off.rot : 0));
+  // モーションの絵は向きが描き込まれているので左右反転しない
+  ctx.scale(sx * (mo ? 1 : f.facing), sy);
 
   // 特殊挙動が出た瞬間の発光（どのキャラでも同じ仕組み）
   if (f.auraTime > 0) {
@@ -464,13 +480,40 @@ Renderer.prototype.drawFighter = function (f) {
     ctx.shadowBlur = 26 * this.scale * Math.min(1, f.auraTime * 2);
   }
 
-  var sprite = Sprites.get(c, f.facingBack);
-  if (sprite.ready) {
-    ctx.drawImage(sprite.image, -w / 2, -h, w, h);
+  if (msp && msp.ready) {
+    ctx.drawImage(msp.image, -w / 2, -h, w, h);
   } else {
-    this.drawFallbackBody(c, w, h);
+    var sprite = Sprites.get(c, f.facingBack);
+    if (sprite.ready) {
+      ctx.drawImage(sprite.image, -w / 2, -h, w, h);
+    } else {
+      this.drawFallbackBody(c, w, h);
+    }
   }
   ctx.restore();
+
+  if (mo) this.drawEffects(f, p);
+};
+
+/** モーション用のエフェクト（本体とは別レイヤー） */
+Renderer.prototype.drawEffects = function (f, p) {
+  var mo = f.motion;
+  if (!mo || !mo.effects.length) return;
+  var ctx = this.ctx;
+  for (var i = 0; i < mo.effects.length; i++) {
+    var e = mo.effects[i];
+    var img = Sprites.byPath(e.path);
+    if (!img.ready) continue;
+    var k = e.t / e.life;
+    var s = (0.7 + k * 0.5) * this.scale * 0.85;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, (1 - k) * 1.6);
+    ctx.drawImage(img.image,
+      p.x + e.dx * this.scale - img.image.naturalWidth * s / 2,
+      p.y + e.dy * this.scale - img.image.naturalHeight * s / 2 - k * 14 * this.scale,
+      img.image.naturalWidth * s, img.image.naturalHeight * s);
+    ctx.restore();
+  }
 };
 
 /** 画像が用意できていないキャラクター共通の仮図形 */

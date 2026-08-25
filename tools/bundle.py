@@ -20,6 +20,22 @@ def data_uri(path):
 js_parts, embedded = [], {}
 for src in order:
     code = open(src, encoding='utf-8').read()
+
+    # motions.js は dir とファイル名を実行時につなげるので、先に展開しておく
+    def expand_dir(match):
+        d = match.group(1)
+        block = match.group(0)
+        def sub_file(m2):
+            path = d + m2.group(2)
+            if not os.path.exists(path):
+                return m2.group(0)
+            embedded.setdefault(path, data_uri(path))
+            return "%s'%s'" % (m2.group(1), embedded[path])
+        block = re.sub(r"(:\s*)'([\w.\-]+\.(?:png|jpg|jpeg|svg|webp))'", sub_file, block)
+        return block.replace("dir: '" + d + "'", "dir: ''", 1)
+
+    code = re.sub(r"dir: '(assets/[^']*/)'.*?effects: \{.*?\}", expand_dir, code, flags=re.S)
+
     for m in set(re.findall(r"'(assets/[^']+\.(?:png|jpg|jpeg|svg|webp))'", code)):
         if os.path.exists(m):
             embedded.setdefault(m, data_uri(m))

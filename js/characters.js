@@ -27,6 +27,7 @@
  * movementSpeed       移動性。大きいほど一度の振動で速く動く
  * knockbackResistance 押されにくさ。大きいほど吹っ飛びにくい
  * specialBehavior     特殊挙動。behaviors.js のキー名。null なら癖なし
+ * motionSet           専用モーション（motions.js のキー名）。省略時は1枚絵
  * bossLabel           対戦中にHUDへ出す小さな札（'裏ボス' など）。省略可
  * battleBackground    その相手のときだけ使う背景画像。省略時は通常の宇宙場所
  * entrance            専用の登場演出。{ darken, omen, arrival } 省略可
@@ -45,13 +46,15 @@ var CHARACTERS = [
     description: '癖が少なくて扱いやすい万能型。',
     type: 'バランス型',
     category: 'normal', playable: true, hidden: false, boss: false,
-    frontImage: 'assets/characters/raijin_front.svg',
-    backImage:  'assets/characters/raijin_back.svg',
+    frontImage: 'assets/characters/raijin/front.png',
+    backImage:  'assets/characters/raijin/back.png',
     thumbnailImage: null,
-    color: '#6d5bd0', size: { w: 86, h: 108 }, radius: 27,
+    color: '#6d5bd0', size: { w: 106, h: 108 }, radius: 27,
     weight: 1.00, friction: 1.00, bounce: 1.00, stability: 1.05,
     vibrationResponse: 1.00, movementSpeed: 1.00, knockbackResistance: 1.00,
     specialBehavior: 'balanced',
+    /* 雷神だけ専用モーション（motions.js）。他キャラは1枚絵のまま。 */
+    motionSet: 'raijin',
     cpuEnabled: true, cpuWeight: 10,
     outCry: 'うおおお〜！',
     reactions: {

@@ -18,6 +18,8 @@ function Fighter(character, role) {
   this.stats = character;           // 性能値はキャラクターデータに直接入っている
   this.radius = character.radius;
   this.beh = getBehavior(character);
+  // 専用モーションを持つキャラだけ（雷神など）。持たないキャラは null のまま。
+  this.motion = (character.motionSet && MOTION_SETS[character.motionSet]) ? new Motion(character) : null;
   this.mods = { friction: 1, fallAngle: 1, gravity: 1, airContact: 1, damping: 0 };
   this.reset(0, 0, 1);
 }
@@ -34,6 +36,7 @@ Fighter.prototype.reset = function (x, y, facing) {
   this.auraTime = 0;                // 特殊挙動が出た瞬間の発光（見た目だけ）
   this.driftScale = 1;              // 宇宙の彼方へ遠ざかるほど小さく見える
   this.bstate = {};                 // 特殊挙動が使う一時的な状態
+  if (this.motion) this.motion = new Motion(this.character);
   this.state = 'fight';             // 'fight' | 'out' | 'down'
   this.stateTime = 0;
   this.loseReason = null;
@@ -110,6 +113,8 @@ Fighter.prototype.applyVibration = function (tapX, tapY, scale, selfShake, energ
     this.vy += (Math.random() * 2 - 1) * VIBE.selfPenaltyPush * 0.5 * selfShake;
   }
 
+  if (this.motion) this.motion.onVibration(this, scale);
+
   if (this.beh && this.beh.vibration) {
     this.beh.vibration(this, {
       nx: nx, ny: ny, ix: ix, iy: iy, scale: scale, energy: energy || 0
@@ -129,6 +134,8 @@ Fighter.prototype.push = function (ix, iy, tiltAmount) {
 Fighter.prototype.step = function (dt, env) {
   this.stateTime += dt;
   var energy = env ? env.energy : 0;
+
+  if (this.motion) this.motion.update(this, dt);
 
   if (this.state === 'out') {
     // 土俵の外は人工重力の外。落ちずに、回りながら宇宙へ流れていく。
@@ -163,6 +170,7 @@ Fighter.prototype.step = function (dt, env) {
     this.z = 0;
     if (this.vz < -40) {
       this.squash = Math.min(1, -this.vz / 260);
+      if (this.motion) this.motion.onLand(this, -this.vz);
       // 着地の衝撃でも姿勢は乱れる
       this.tiltVel += this.vx * PHYS.landTilt / s.stability;
       this.vz = -this.vz * PHYS.bounceLoss * s.bounce;
@@ -186,6 +194,8 @@ Fighter.prototype.step = function (dt, env) {
                (dist / WORLD.radius - PHYS.gripStart) / (1 - PHYS.gripStart);
     extraDamp += PHYS.edgeGrip * (0.6 + 0.4 * s.stability) * Math.min(1, grip);
   }
+  // 雷神の「ふんばり」。耐えている短いあいだだけ摩擦が上がる。
+  if (this.motion) extraDamp += this.motion.gripBoost();
 
   // --- 振動が続いているあいだの細かいガタつき ---
   if (energy > 0.02) {
@@ -283,6 +293,9 @@ function resolveCollision(a, b) {
   b.tiltVel += nx * t / b.stats.stability;
 
   // 少し浮く
+  if (a.motion) a.motion.onImpact(a, Math.abs(j) / 260);
+  if (b.motion) b.motion.onImpact(b, Math.abs(j) / 260);
+
   var hop = Math.abs(j) * PHYS.hitHop;
   if (a.isGrounded()) a.vz += hop * a.stats.bounce / wa;
   if (b.isGrounded()) b.vz += hop * b.stats.bounce / wb;
