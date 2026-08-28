@@ -224,7 +224,7 @@ var BEHAVIORS = {
       if (d > 200) return;
       o.push(dx / d * 150, dy / d * 150, dx / d * 0.9);
       o.vz += 85;
-      f.auraTime = 0.45; f.ring = 1;
+      f.auraTime = 0.45; f.ring = 1; f.shoutTime = 1.0;
     }
   },
 
@@ -241,7 +241,7 @@ var BEHAVIORS = {
       var p = 205 / (1 + d / 110);
       o.push(dx / d * p, dy / d * p, dx / d * 1.4);
       o.vz += 100;
-      f.auraTime = 0.65; f.ring = 1;
+      f.auraTime = 0.65; f.ring = 1; f.shoutTime = 1.0;
     }
   },
 
@@ -257,7 +257,7 @@ var BEHAVIORS = {
         f.vx += Math.cos(a) * 205;
         f.vy += Math.sin(a) * 205;
         f.vz += 60;
-        f.auraTime = 0.5; f.ring = 0.8;
+        f.auraTime = 0.5; f.ring = 0.8; f.shoutTime = 0.9;
       } else {
         var o = env.opponent;
         if (!o || o.state !== 'fight') return;
@@ -267,7 +267,7 @@ var BEHAVIORS = {
         var p = Math.min(320, 320 / (1 + d / 110) * (0.6 + 0.4 * o.stats.weight));
         o.push(dx / d * p, dy / d * p, dx / d * 1.3);
         o.vz += 130;
-        f.auraTime = 0.6; f.ring = 1;
+        f.auraTime = 0.6; f.ring = 1; f.shoutTime = 1.1;
       }
     }
   },

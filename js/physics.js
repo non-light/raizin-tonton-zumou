@@ -35,6 +35,7 @@ Fighter.prototype.reset = function (x, y, facing) {
   this.spinVisual = 0;              // 転がり表現などの追加回転（見た目だけ）
   this.auraTime = 0;                // 特殊挙動が出た瞬間の発光（見た目だけ）
   this.ring = 0;                    // 大技のときに広がる衝撃の輪（見た目だけ）
+  this.shoutTime = 0;               // 大技のときに出す漢字の残り時間（見た目だけ）
   this.driftScale = 1;              // 宇宙の彼方へ遠ざかるほど小さく見える
   this.bstate = {};                 // 特殊挙動が使う一時的な状態
   if (this.motion) this.motion = new Motion(this.character);
@@ -204,6 +205,7 @@ Fighter.prototype.step = function (dt, env) {
 
   this.auraTime = Math.max(0, this.auraTime - dt);
   this.ring = Math.max(0, this.ring - dt * 1.5);
+  this.shoutTime = Math.max(0, this.shoutTime - dt);
 
   // --- 上下 ---
   if (this.vz > PHYS.maxRise) this.vz = PHYS.maxRise;   // 跳ねすぎて画面外へ行かない

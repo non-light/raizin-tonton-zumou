@@ -25,8 +25,7 @@ var UI = (function () {
     el.gaugeFill = $('gauge-fill');
     el.gaugeLabel = $('gauge-label');
     el.gaugeMarker = $('gauge-marker');
-    el.zoneGood = document.querySelector('.z-good');
-    el.zoneLate = document.querySelector('.z-late');
+    el.gaugeZones = $('gauge-zones');
     el.overlay = $('overlay');
     el.stage = document.querySelector('.stage');
     el.modal = $('result-modal');
@@ -330,7 +329,7 @@ var UI = (function () {
     renderHudSide(el.hudPlayer, state.playerChar, 'あなた');
     renderHudSide(el.hudOpponent, state.opponentChar, 'あいて');
     shownZone = null;
-    onEnergy(0, 'early', game.zoneStart, game.zoneEnd);
+    onEnergy(0, 'early', game.zones);
   }
 
   function renderHudSide(host, character, whoLabel) {
@@ -356,20 +355,28 @@ var UI = (function () {
   var ZONE_TEXT = { early: 'ためる', good: 'いまだ！', late: 'あばれすぎ！' };
   var shownZone = null;
 
-  function onEnergy(ratio, zone, zoneStart, zoneEnd) {
+  /** 「いまだ！」の帯（1本または2本）を描き直す */
+  function drawZones(zones) {
+    var html = '<span class="z-early" style="left:0;width:100%"></span>';
+    for (var i = 0; i < zones.length; i++) {
+      html += '<span class="z-good" style="left:' + (zones[i][0] * 100) +
+              '%;width:' + ((zones[i][1] - zones[i][0]) * 100) + '%"></span>';
+    }
+    var last = zones[zones.length - 1][1];
+    html += '<span class="z-late" style="left:' + (last * 100) +
+            '%;width:' + ((1 - last) * 100) + '%"></span>';
+    el.gaugeZones.innerHTML = html;
+  }
+
+  function onEnergy(ratio, zone, zones) {
     var pct = Math.round(ratio * 100);
     el.gaugeFill.style.width = pct + '%';
     el.gaugeMarker.style.left = 'calc(' + pct + '% - 1.5px)';
 
-    // 「いまだ！」の帯は取組ごとに位置が変わるので、変わったときだけ描き直す
-    var key = zoneStart + '/' + zoneEnd;
-    if (key !== shownZone && zoneStart !== undefined) {
-      shownZone = key;
-      el.zoneGood.style.left = (zoneStart * 100) + '%';
-      el.zoneGood.style.width = ((zoneEnd - zoneStart) * 100) + '%';
-      el.zoneLate.style.left = (zoneEnd * 100) + '%';
-      el.zoneLate.style.width = ((1 - zoneEnd) * 100) + '%';
-      if (game) game.renderer.lateFrom = zoneEnd * VIBE.max;
+    // 帯は取組ごとに位置も数も変わるので、変わったときだけ描き直す
+    if (zones && zones.length) {
+      var key = JSON.stringify(zones);
+      if (key !== shownZone) { shownZone = key; drawZones(zones); }
     }
 
     el.gauge.classList.toggle('good', zone === 'good');

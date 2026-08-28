@@ -14,8 +14,8 @@ function Game(canvas, hooks) {
 
   this.energy = 0;          // 溜まっている振動 0..VIBE.max
   this.frozen = false;      // 開始演出のあいだは土俵を止めておく
-  this.zoneStart = VIBE.zoneMin;
-  this.zoneEnd = VIBE.zoneMin + VIBE.zoneWidth;
+  this.zones = [[0.34, 0.60]];
+  this.lateFrom = 0.60;
   this.hitCool = 0;         // 衝突演出の連発防止
   this.phase = 'idle';      // 'idle' | 'intro' | 'live' | 'outro'
   this.result = null;
@@ -155,8 +155,8 @@ Game.prototype.tap = function (px, py) {
   var scale = VIBE.minScale + (VIBE.maxScale - VIBE.minScale) * this.energy;
 
   // すでに強く揺れている最中に叩くと、自分のキャラまで不安定になる
-  // 「いまだ！」の帯を過ぎてから叩くと、自分のキャラまで不安定になる
-  var lateFrom = this.zoneEnd * VIBE.max;
+  // 最後の「いまだ！」の帯を過ぎてから叩くと、自分のキャラまで不安定になる
+  var lateFrom = this.lateFrom * VIBE.max;
   var over = 0;
   if (before > lateFrom) {
     over = (before - lateFrom) / Math.max(0.05, VIBE.max - lateFrom);
@@ -188,23 +188,36 @@ Game.prototype.tap = function (px, py) {
   this.emitEnergy();
 };
 
-/** 「いまだ！」の帯を取組ごとに置き直す */
+/**
+ * 「いまだ！」の帯を取組ごとに置き直す。
+ * ときどき2本になる。2本のときは1本ずつが狭いかわりに機会が増える。
+ */
 Game.prototype.rollZone = function () {
-  this.zoneStart = VIBE.zoneMin + Math.random() * (VIBE.zoneMax - VIBE.zoneMin);
-  this.zoneEnd = this.zoneStart + VIBE.zoneWidth;
+  if (Math.random() < VIBE.twoZoneChance) {
+    var w = VIBE.zoneWidth;
+    var a = 0.08 + Math.random() * 0.16;
+    var b = a + w + 0.12 + Math.random() * 0.16;
+    if (b + w > 0.96) b = 0.96 - w;
+    this.zones = [[a, a + w], [b, b + w]];
+  } else {
+    var s = VIBE.zoneMin + Math.random() * (VIBE.zoneMax - VIBE.zoneMin);
+    this.zones = [[s, Math.min(0.96, s + VIBE.wideWidth)]];
+  }
+  this.lateFrom = this.zones[this.zones.length - 1][1];
 };
 
 /** いまのゲージがどの帯にいるか */
 Game.prototype.zone = function (v) {
   var e = (v === undefined ? this.energy : v) / VIBE.max;
-  if (e < this.zoneStart) return 'early';
-  if (e < this.zoneEnd) return 'good';
-  return 'late';
+  for (var i = 0; i < this.zones.length; i++) {
+    if (e >= this.zones[i][0] && e < this.zones[i][1]) return 'good';
+  }
+  return e >= this.lateFrom ? 'late' : 'early';
 };
 
 Game.prototype.emitEnergy = function () {
   if (this.hooks.onEnergy) {
-    this.hooks.onEnergy(this.energy / VIBE.max, this.zone(), this.zoneStart, this.zoneEnd);
+    this.hooks.onEnergy(this.energy / VIBE.max, this.zone(), this.zones);
   }
 };
 

@@ -193,6 +193,9 @@ Renderer.prototype.draw = function (fighters, energy) {
   // 場外へ飛んでいくキャラのひとこと（揺れの影響を受けない）
   for (i = 0; i < fighters.length; i++) this.drawCry(fighters[i]);
 
+  // 大技の漢字。いちばん手前に描くので、向きにも重なりにも左右されない。
+  for (i = 0; i < fighters.length; i++) this.drawShout(fighters[i]);
+
   // 暗転（登場演出用）
   if (this.darken > 0) {
     ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, this.darken) + ')';
@@ -496,6 +499,42 @@ Renderer.prototype.drawFighter = function (f) {
 
   if (f.ring > 0) this.drawRing(f, p);
   if (mo) this.drawEffects(f, p);
+};
+
+/** 大技のときの漢字（もりけんさんの「圧！」など）。画面のいちばん手前に大きく出す。 */
+Renderer.prototype.drawShout = function (f) {
+  var ch = f.character.shout;
+  if (!ch || f.shoutTime <= 0) return;
+
+  var ctx = this.ctx;
+  var life = f.shoutTime;
+  var k = 1 - Math.min(1, life);              // 0=出た瞬間 1=消える直前
+  var pop = k < 0.18 ? 1.7 - k * 3.9 : 1;     // どんと出て、すっと縮む
+  var fade = Math.min(1, life * 2.2);
+
+  var p = this.toScreen(f.x, f.y, f.character.size.h * 0.65);
+  var size = 96 * this.scale * pop;
+  var col = f.character.auraColor || '#ffd166';
+
+  ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.translate(p.x, p.y - k * 18 * this.scale);
+  ctx.font = '900 ' + size + 'px "Hiragino Mincho ProN","Yu Mincho",serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.shadowColor = col;
+  ctx.shadowBlur = 34 * this.scale;
+  ctx.lineWidth = 9 * this.scale;
+  ctx.strokeStyle = 'rgba(10,12,26,0.95)';
+  ctx.strokeText(ch + '！', 0, 0);
+
+  var g = ctx.createLinearGradient(0, -size * 0.5, 0, size * 0.5);
+  g.addColorStop(0, '#fffaf0');
+  g.addColorStop(1, col);
+  ctx.fillStyle = g;
+  ctx.fillText(ch + '！', 0, 0);
+  ctx.restore();
 };
 
 /** 大技のときに広がる衝撃の輪。向きに関係なく見えるようにキャラの手前に描く。 */

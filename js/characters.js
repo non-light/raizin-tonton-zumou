@@ -296,6 +296,7 @@ var CHARACTERS = [
     weight: 1.85, friction: 1.30, bounce: 0.35, stability: 1.70,
     vibrationResponse: 0.62, movementSpeed: 0.85, knockbackResistance: 1.25,
     specialBehavior: 'luckyPaw',
+    shout: '福',                      // 大技のときに大きく出す漢字
     cpuEnabled: true, cpuWeight: 3.5,
     outCry: 'まねきそこねた……',
     reactions: { win: ['ふくを まねいたにゃ'], lose: ['まねきそこねた……'] }
@@ -313,6 +314,7 @@ var CHARACTERS = [
     weight: 1.65, friction: 1.10, bounce: 0.80, stability: 1.60,
     vibrationResponse: 0.72, movementSpeed: 1.00, knockbackResistance: 1.20,
     specialBehavior: 'thunderBurst',
+    shout: '雷',                      // 大技のときに大きく出す漢字
     cpuEnabled: true, cpuWeight: 2.5,
     unlockCondition: function (p) { return p.wins >= 2; },
     outCry: 'ぐ……おのれ……',
@@ -332,6 +334,7 @@ var CHARACTERS = [
     weight: 2.50, friction: 1.60, bounce: 0.25, stability: 1.95,
     vibrationResponse: 0.35, movementSpeed: 0.70, knockbackResistance: 1.60,
     specialBehavior: 'moriken',
+    shout: '圧',                      // 大技のときに大きく出す漢字
     /* --- 裏ボス専用の見せかた（すべてここで差し替えられる） --- */
     bossLabel: '裏ボス',
     battleBackground: 'assets/backgrounds-moriken.png',

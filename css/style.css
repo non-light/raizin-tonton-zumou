@@ -228,14 +228,13 @@ body::after{
 /* 前半 / 中間 / 後半 の3つの帯 */
 .gauge-zones{ position:absolute; inset:0; }
 .gauge-zones span{ position:absolute; top:0; height:100%; }
-.z-early{ left:0; width:100%; background:rgba(255,255,255,.05); }
-/* 「いまだ！」の帯。位置は取組ごとに JS が動かす */
+.z-early{ background:rgba(255,255,255,.05); }
+/* 「いまだ！」の帯。位置も数も取組ごとに JS が入れ替える */
 .z-good{
-  left:34%; width:32%;
-  background:rgba(120,235,180,.28);
-  box-shadow:inset 1px 0 0 rgba(120,235,180,.7), inset -1px 0 0 rgba(120,235,180,.7);
+  background:rgba(120,235,180,.32);
+  box-shadow:inset 1px 0 0 rgba(120,235,180,.85), inset -1px 0 0 rgba(120,235,180,.85);
 }
-.z-late{ left:66%; width:34%; background:rgba(255,90,74,.16); }
+.z-late{ background:rgba(255,90,74,.16); }
 .gauge-fill{
   position:absolute; top:0; left:0;
   width:0%; height:100%; border-radius:999px;
