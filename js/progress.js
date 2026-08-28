@@ -17,6 +17,7 @@ var Progress = (function () {
     usedWith: {},     // キャラid → そのキャラで戦った回数
     defeated: {},     // キャラid → 倒した回数
     met: {},          // キャラid → 出会った回数
+    lastMet: {},      // キャラid → 最後に当たったときの試合数（レア枠の救済に使う）
     unlocked: {}      // キャラid → 正体が判明したか
   };
 
@@ -40,6 +41,7 @@ var Progress = (function () {
     data.matches++;
     data.usedWith[playerChar.id] = (data.usedWith[playerChar.id] || 0) + 1;
     data.met[opponentChar.id] = (data.met[opponentChar.id] || 0) + 1;
+    data.lastMet[opponentChar.id] = data.matches;
     save();
   }
 
@@ -75,7 +77,7 @@ var Progress = (function () {
     isUnlocked: function (id) { return !!data.unlocked[id]; },
     reset: function () {
       data.wins = data.losses = data.streak = data.matches = 0;
-      data.usedWith = {}; data.defeated = {}; data.met = {}; data.unlocked = {};
+      data.usedWith = {}; data.defeated = {}; data.met = {}; data.unlocked = {}; data.lastMet = {};
       save();
     }
   };
@@ -92,13 +94,22 @@ var Progress = (function () {
  *   unlockCondition 省略可。true を返したときだけ抽選に入る。
  * ------------------------------------------------------------------------- */
 
+/**
+ * そのキャラのいまの重み。
+ * cpuWeight には数値のほか、関数も書ける（進行状況で重みを変えたいとき用）。
+ */
+function cpuWeightOf(c) {
+  var w = typeof c.cpuWeight === 'function' ? c.cpuWeight(Progress.data) : c.cpuWeight;
+  return (typeof w === 'number' && w > 0) ? w : 0;
+}
+
 /** いま抽選対象になるCPU候補（プレイヤーと同じキャラは除く） */
 function getCpuCandidates(playerChar) {
   var out = [];
   for (var i = 0; i < CHARACTERS.length; i++) {
     var c = CHARACTERS[i];
     if (!c.cpuEnabled) continue;
-    if (!c.cpuWeight || c.cpuWeight <= 0) continue;
+    if (cpuWeightOf(c) <= 0) continue;
     if (playerChar && c.id === playerChar.id && !RULES.allowMirrorMatch) continue;
     if (c.unlockCondition && !c.unlockCondition(Progress.data)) continue;
     out.push(c);
@@ -106,15 +117,22 @@ function getCpuCandidates(playerChar) {
   return out;
 }
 
+/** 最後にそのキャラと当たってから何試合たったか */
+function matchesSinceMet(id) {
+  var at = Progress.data.lastMet && Progress.data.lastMet[id];
+  if (at === undefined) return Progress.data.matches;      // 一度も会っていない
+  return Progress.data.matches - at;
+}
+
 /** 重み付きランダムで対戦相手を1体選ぶ */
 function pickCpuCharacter(playerChar) {
   var list = getCpuCandidates(playerChar);
   if (!list.length) return null;
-  var total = 0, i;
-  for (i = 0; i < list.length; i++) total += list[i].cpuWeight;
+  var total = 0, i, w = [];
+  for (i = 0; i < list.length; i++) { w[i] = cpuWeightOf(list[i]); total += w[i]; }
   var r = Math.random() * total;
   for (i = 0; i < list.length; i++) {
-    r -= list[i].cpuWeight;
+    r -= w[i];
     if (r <= 0) return list[i];
   }
   return list[list.length - 1];

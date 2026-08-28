@@ -262,9 +262,11 @@ var BEHAVIORS = {
         var o = env.opponent;
         if (!o || o.state !== 'fight') return;
         var dx = o.x - f.x, dy = o.y - f.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
-        var p = 360 / (1 + d / 90);
-        o.push(dx / d * p, dy / d * p, dx / d * 1.6);
-        o.vz += 145;
+        // 押し返しは軽いキャラほど効きすぎるので、上限をつけておく
+        // 押し返しは軽いキャラほど効きすぎるので、相手の重さで加減し上限もつける
+        var p = Math.min(320, 320 / (1 + d / 110) * (0.6 + 0.4 * o.stats.weight));
+        o.push(dx / d * p, dy / d * p, dx / d * 1.3);
+        o.vz += 130;
         f.auraTime = 0.6;
       }
     }
