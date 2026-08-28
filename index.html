@@ -34,7 +34,11 @@
     <div class="hud">
       <div class="hud-side" id="hud-player"></div>
       <div class="hud-center">
-        <div class="gauge" id="gauge"><div class="gauge-fill" id="gauge-fill"></div></div>
+        <div class="gauge" id="gauge">
+          <div class="gauge-zones"><span class="z-early"></span><span class="z-good"></span><span class="z-late"></span></div>
+          <div class="gauge-fill" id="gauge-fill"></div>
+          <div class="gauge-marker" id="gauge-marker"></div>
+        </div>
         <div class="gauge-label" id="gauge-label">しんどう</div>
       </div>
       <div class="hud-side hud-right" id="hud-opponent"></div>
@@ -45,7 +49,7 @@
       <div class="overlay" id="overlay" hidden></div>
     </div>
 
-    <p class="hint">土俵をトントン！　連打よりタイミング。</p>
+    <p class="hint">土俵をトントン！　ゲージが<b>まん中</b>のときに叩くと踏み込める。</p>
     <p class="hint hint-sub">※ 土俵の上だけ人工重力あり</p>
   </section>
 

@@ -114,7 +114,7 @@ Renderer.prototype.addShake = function (dx, dy, power) {
 Renderer.prototype.update = function (dt) {
   this.space.update(dt);
   if (this.backdrop) this.backdropFade = Math.min(1, this.backdropFade + dt * 1.4);
-  this.rumble = Math.max(0, this.rumble - dt * 1.6);
+  this.rumble = Math.max(0, this.rumble - dt * 2.6);   // rumble() で毎フレーム入れ直せる
   this.rimPulse *= Math.max(0, 1 - dt * 3.2);
   this.goldFlash = Math.max(0, this.goldFlash - dt * 1.1);
 

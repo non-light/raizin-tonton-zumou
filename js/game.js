@@ -89,7 +89,7 @@ Game.prototype.setDarken = function (v) { this.renderer.darken = v; };
 Game.prototype.setBackdrop = function (path) { this.renderer.setBackdrop(path); };
 
 /** 地響き（土俵が小さく揺れる） */
-Game.prototype.rumble = function (v) { this.renderer.rumble = Math.max(this.renderer.rumble, v); };
+Game.prototype.rumble = function (v) { this.renderer.rumble = Math.min(1.5, Math.max(this.renderer.rumble, v)); };
 
 /** 決まり手「圧」の静かな演出（派手にしない） */
 Game.prototype.pressure = function () {
@@ -163,6 +163,11 @@ Game.prototype.tap = function (px, py) {
   }
 
   // 宇宙らしい小さな演出。物理挙動が見えなくならない程度に留める。
+  // ゲージの中間帯で叩けたときは、自分のキャラが相手のほうへ踏み込む。
+  // （押した瞬間に見えていた帯で判定する）
+  var zone = this.zone(before);
+  if (zone === 'good') this.stepIntoOpponent();
+
   // 相手と組んでいるときのトントンは、押し込みの後押しになる
   // （クリックが直接相手を殴るのではなく、振動→自分の踏み込み→相手へ伝わる）
   shoveOnContact(this.player, this.opponent, 0.5 + this.energy * 0.7);
@@ -178,9 +183,17 @@ Game.prototype.tap = function (px, py) {
   this.emitEnergy();
 };
 
+/** いまのゲージがどの帯にいるか */
+Game.prototype.zone = function (v) {
+  var e = (v === undefined ? this.energy : v) / VIBE.max;
+  if (e < VIBE.zoneMid) return 'early';
+  if (e < VIBE.zoneLate) return 'good';
+  return 'late';
+};
+
 Game.prototype.emitEnergy = function () {
   if (this.hooks.onEnergy) {
-    this.hooks.onEnergy(this.energy / VIBE.max, this.energy > VIBE.overdrive);
+    this.hooks.onEnergy(this.energy / VIBE.max, this.zone());
   }
 };
 
@@ -243,6 +256,22 @@ Game.prototype.update = function (dt) {
       if (this.hooks.onFinish) this.hooks.onFinish(this.result);
     }
   }
+};
+
+/** 中間帯で叩けたご褒美。自分のキャラが相手へ一歩踏み込む。 */
+Game.prototype.stepIntoOpponent = function () {
+  var p = this.player, o = this.opponent;
+  if (p.state !== 'fight' || o.state !== 'fight') return;
+  var dx = o.x - p.x, dy = o.y - p.y;
+  var d = Math.sqrt(dx * dx + dy * dy) || 1;
+  var f = VIBE.stepIn / p.stats.weight;
+  p.vx += (dx / d) * f;
+  p.vy += (dy / d) * f;
+  if (p.isGrounded()) p.vz += 30 * p.stats.bounce;
+  p.auraTime = 0.25;
+  if (p.motion) p.motion.addEffect('burst', 0, -p.character.size.h * 0.5, 0.3);
+  this.renderer.addSparks(p.x, p.y, 0.8);
+  Sound.nice();
 };
 
 /** 強くぶつかったときだけ演出を出す */

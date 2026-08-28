@@ -218,20 +218,43 @@ body::after{
 .hud-side .meta{ min-width:0; }
 .hud-side .who{ font-size:11px; color:#93a0c6; }
 .hud-side .nm{ font-size:15px; font-weight:700; color:#fff4dc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.hud-center{ text-align:center; width:96px; }
+.hud-center{ text-align:center; }
 .gauge{
-  width:96px; height:9px; border-radius:999px;
-  background:rgba(255,255,255,.12); overflow:hidden;
+  position:relative;
+  width:min(300px, 46vw); height:14px; border-radius:999px;
+  background:rgba(255,255,255,.10); overflow:hidden;
   box-shadow:inset 0 1px 3px rgba(0,0,0,.5);
 }
+/* 前半 / 中間 / 後半 の3つの帯 */
+.gauge-zones{ position:absolute; inset:0; display:flex; }
+.gauge-zones span{ height:100%; }
+.z-early{ flex:34; background:rgba(255,255,255,.05); }
+.z-good{
+  flex:32;
+  background:rgba(120,235,180,.22);
+  box-shadow:inset 1px 0 0 rgba(120,235,180,.55), inset -1px 0 0 rgba(120,235,180,.55);
+}
+.z-late{ flex:34; background:rgba(255,90,74,.16); }
 .gauge-fill{
+  position:absolute; top:0; left:0;
   width:0%; height:100%; border-radius:999px;
   background:linear-gradient(90deg,var(--neon),var(--gold));
+  opacity:.85;
   transition:width .06s linear;
 }
-.gauge.hot .gauge-fill{ background:linear-gradient(90deg,#ff9f43,#ff5a4a); }
+/* いまの位置を示す針 */
+.gauge-marker{
+  position:absolute; top:-2px; left:0; width:3px; height:18px;
+  border-radius:2px; background:#fff;
+  box-shadow:0 0 8px rgba(255,255,255,.9);
+  transition:left .06s linear;
+}
+.gauge.good{ box-shadow:inset 0 1px 3px rgba(0,0,0,.5), 0 0 14px rgba(120,235,180,.55); }
+.gauge.good .gauge-fill{ background:linear-gradient(90deg,#6fe0a8,#b6f5a0); opacity:1; }
+.gauge.hot .gauge-fill{ background:linear-gradient(90deg,#ff9f43,#ff5a4a); opacity:1; }
 .gauge-label{ font-size:11px; margin-top:3px; color:#93a0c6; }
 .gauge-label.hot{ color:#ff8f7a; font-weight:700; }
+.gauge-label.good{ color:#8ff0be; font-weight:700; }
 
 .stage{
   position:relative; width:100%; isolation:isolate;

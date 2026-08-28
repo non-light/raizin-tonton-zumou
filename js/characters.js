@@ -337,18 +337,18 @@ var CHARACTERS = [
     battleBackground: 'assets/backgrounds-moriken.png',
     entrance: {
       darken: true,                       // 先に画面を暗転させる
-      omen: '……何か来る',
+      omen: 'ずごごごご……',
       arrival: 'もりけんさんが現れた！'
     },
     cpuEnabled: true,
-    /* スーパーレアだが、会えなさすぎても面白くないので救済つき。
-       しばらく当たっていないと、その分だけ出やすくなる。
-       基本 2.2（約2%）→ 30試合会えないと 8.2（約8%）まで上がる。 */
+    /* 強い者のところへ現れる。
+       勝ち越しているほど、また連勝しているほど出やすくなる。
+       負け越しているあいだはめったに顔を出さない。 */
     cpuWeight: function (p) {
-      var since = (p.lastMet && p.lastMet.moriken !== undefined)
-        ? p.matches - p.lastMet.moriken
-        : p.matches;
-      return 2.2 + Math.min(6, since * 0.2);
+      if (p.matches < 3) return 0;             // 最初の数戦では出てこない
+      var lead = p.wins - p.losses;            // 勝ち越し具合
+      if (lead <= 0) return 0.6;               // 負け越し中はごくまれ
+      return Math.min(26, 1.5 + lead * 1.8 + p.streak * 2.2);
     },
     outCry: 'あ、いま本気出そうと……',
     reactions: { win: ['まだ本気じゃないよ'], lose: ['あ、いま本気出そうと……'] },

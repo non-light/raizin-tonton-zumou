@@ -24,6 +24,7 @@ var UI = (function () {
     el.gauge = $('gauge');
     el.gaugeFill = $('gauge-fill');
     el.gaugeLabel = $('gauge-label');
+    el.gaugeMarker = $('gauge-marker');
     el.overlay = $('overlay');
     el.stage = document.querySelector('.stage');
     el.modal = $('result-modal');
@@ -183,10 +184,16 @@ var UI = (function () {
       if (k < 1) requestAnimationFrame(fade); else step2();
     })();
 
-    function step2() {                      // 2.「……何か来る」
+    function step2() {                      // 2.「ずごごごご……」
       banner(e.omen, 'omen-dark');
-      Sound.omen(1.4);
-      game.rumble(0.5);
+      Sound.omen(FLOW.omenHold / 1000);
+      // 近づいてくるほど地響きが大きくなる
+      var t0 = performance.now();
+      (function shake() {
+        var k = Math.min(1, (performance.now() - t0) / FLOW.omenHold);
+        game.rumble(0.25 + k * 0.9);
+        if (k < 1) requestAnimationFrame(shake);
+      })();
       later(step3, FLOW.omenHold);
     }
 
@@ -320,7 +327,7 @@ var UI = (function () {
   function buildHud() {
     renderHudSide(el.hudPlayer, state.playerChar, 'あなた');
     renderHudSide(el.hudOpponent, state.opponentChar, 'あいて');
-    onEnergy(0, false);
+    onEnergy(0, 'early');
   }
 
   function renderHudSide(host, character, whoLabel) {
@@ -343,11 +350,17 @@ var UI = (function () {
 
   /* ---------------- 振動ゲージ ---------------- */
 
-  function onEnergy(ratio, hot) {
-    el.gaugeFill.style.width = Math.round(ratio * 100) + '%';
-    el.gauge.classList.toggle('hot', hot);
-    el.gaugeLabel.classList.toggle('hot', hot);
-    el.gaugeLabel.textContent = hot ? 'あばれすぎ！' : 'しんどう';
+  var ZONE_TEXT = { early: 'ためる', good: 'いまだ！', late: 'あばれすぎ！' };
+
+  function onEnergy(ratio, zone) {
+    var pct = Math.round(ratio * 100);
+    el.gaugeFill.style.width = pct + '%';
+    el.gaugeMarker.style.left = 'calc(' + pct + '% - 1.5px)';
+    el.gauge.classList.toggle('good', zone === 'good');
+    el.gauge.classList.toggle('hot', zone === 'late');
+    el.gaugeLabel.classList.toggle('good', zone === 'good');
+    el.gaugeLabel.classList.toggle('hot', zone === 'late');
+    el.gaugeLabel.textContent = ZONE_TEXT[zone] || 'しんどう';
   }
 
   /* ---------------- 4. 結果 ---------------- */

@@ -119,5 +119,22 @@ var Sound = (function () {
     o.start(t); o.stop(t + 0.34);
   }
 
-  return { tap: tap, reveal: reveal, shakin: shakin, omen: omen, boom: boom, thud: thud };
+  /** ゲージの中間帯で叩けたときの気持ちいい音 */
+  function nice() {
+    var ac = ensure(); if (!ac) return;
+    if (ac.state === 'suspended') ac.resume();
+    var t = ac.currentTime;
+    [880, 1320].forEach(function (f, i) {
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, t + i * 0.05);
+      g.gain.setValueAtTime(0.0001, t + i * 0.05);
+      g.gain.exponentialRampToValueAtTime(0.13, t + i * 0.05 + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.05 + 0.14);
+      o.connect(g).connect(ac.destination);
+      o.start(t + i * 0.05); o.stop(t + i * 0.05 + 0.16);
+    });
+  }
+
+  return { tap: tap, reveal: reveal, shakin: shakin, omen: omen, boom: boom, thud: thud, nice: nice };
 })();
