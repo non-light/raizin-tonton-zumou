@@ -25,6 +25,8 @@ var UI = (function () {
     el.gaugeFill = $('gauge-fill');
     el.gaugeLabel = $('gauge-label');
     el.gaugeMarker = $('gauge-marker');
+    el.zoneGood = document.querySelector('.z-good');
+    el.zoneLate = document.querySelector('.z-late');
     el.overlay = $('overlay');
     el.stage = document.querySelector('.stage');
     el.modal = $('result-modal');
@@ -327,7 +329,8 @@ var UI = (function () {
   function buildHud() {
     renderHudSide(el.hudPlayer, state.playerChar, 'あなた');
     renderHudSide(el.hudOpponent, state.opponentChar, 'あいて');
-    onEnergy(0, 'early');
+    shownZone = null;
+    onEnergy(0, 'early', game.zoneStart, game.zoneEnd);
   }
 
   function renderHudSide(host, character, whoLabel) {
@@ -351,11 +354,24 @@ var UI = (function () {
   /* ---------------- 振動ゲージ ---------------- */
 
   var ZONE_TEXT = { early: 'ためる', good: 'いまだ！', late: 'あばれすぎ！' };
+  var shownZone = null;
 
-  function onEnergy(ratio, zone) {
+  function onEnergy(ratio, zone, zoneStart, zoneEnd) {
     var pct = Math.round(ratio * 100);
     el.gaugeFill.style.width = pct + '%';
     el.gaugeMarker.style.left = 'calc(' + pct + '% - 1.5px)';
+
+    // 「いまだ！」の帯は取組ごとに位置が変わるので、変わったときだけ描き直す
+    var key = zoneStart + '/' + zoneEnd;
+    if (key !== shownZone && zoneStart !== undefined) {
+      shownZone = key;
+      el.zoneGood.style.left = (zoneStart * 100) + '%';
+      el.zoneGood.style.width = ((zoneEnd - zoneStart) * 100) + '%';
+      el.zoneLate.style.left = (zoneEnd * 100) + '%';
+      el.zoneLate.style.width = ((1 - zoneEnd) * 100) + '%';
+      if (game) game.renderer.lateFrom = zoneEnd * VIBE.max;
+    }
+
     el.gauge.classList.toggle('good', zone === 'good');
     el.gauge.classList.toggle('hot', zone === 'late');
     el.gaugeLabel.classList.toggle('good', zone === 'good');

@@ -16,6 +16,7 @@ function Renderer(canvas) {
   this.sparks = [];
   this.rimPulse = 0;                 // 叩いた瞬間に土俵のふちが光る
   this.goldFlash = 0;                // 金の招き猫イベントの光
+  this.lateFrom = 0.66;              // これを超えると土俵が赤くなる（ゲージの後半帯）
   this.backdrop = null;              // 差し替え背景（裏ボス戦など）
   this.backdropFade = 0;             // 0=通常の宇宙 1=差し替え背景
   this.darken = 0;                   // 画面全体の暗転 0..1
@@ -285,7 +286,7 @@ Renderer.prototype.drawDohyo = function (energy) {
     ctx.globalAlpha = Math.min(0.55, energy * 0.55);
     ctx.beginPath();
     ctx.ellipse(cx, cy, R, ry, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = energy > VIBE.overdrive ? '#ff6b5c' : '#ffd166';
+    ctx.strokeStyle = energy > this.lateFrom ? '#ff6b5c' : '#ffd166';
     ctx.lineWidth = (3 + energy * 6) * sc;
     ctx.stroke();
     ctx.globalAlpha = 1;
@@ -475,9 +476,10 @@ Renderer.prototype.drawFighter = function (f) {
   ctx.scale(sx * (mo ? 1 : f.facing), sy);
 
   // 特殊挙動が出た瞬間の発光（どのキャラでも同じ仕組み）
+  // 色が暗いキャラは宇宙背景に埋もれるので auraColor を優先する
   if (f.auraTime > 0) {
-    ctx.shadowColor = c.color;
-    ctx.shadowBlur = 26 * this.scale * Math.min(1, f.auraTime * 2);
+    ctx.shadowColor = c.auraColor || c.color;
+    ctx.shadowBlur = 30 * this.scale * Math.min(1, f.auraTime * 2);
   }
 
   if (msp && msp.ready) {
@@ -492,7 +494,27 @@ Renderer.prototype.drawFighter = function (f) {
   }
   ctx.restore();
 
+  if (f.ring > 0) this.drawRing(f, p);
   if (mo) this.drawEffects(f, p);
+};
+
+/** 大技のときに広がる衝撃の輪。向きに関係なく見えるようにキャラの手前に描く。 */
+Renderer.prototype.drawRing = function (f, p) {
+  var ctx = this.ctx;
+  var k = 1 - f.ring;                       // 0=出た瞬間 1=消える直前
+  var col = f.character.auraColor || f.character.color;
+  var rad = (f.radius * 0.8 + k * 130) * this.scale;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, f.ring) * 0.85;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = (7 * (1 - k) + 1.5) * this.scale;
+  ctx.shadowColor = col;
+  ctx.shadowBlur = 18 * this.scale;
+  ctx.beginPath();
+  ctx.ellipse(p.x, p.y - f.character.size.h * 0.35 * this.scale,
+              rad, rad * WORLD.depth, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 };
 
 /** モーション用のエフェクト（本体とは別レイヤー） */
