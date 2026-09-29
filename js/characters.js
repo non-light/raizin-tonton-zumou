@@ -329,9 +329,16 @@ var CHARACTERS = [
     /* 画像は後日差し替え予定。ここのパスを変えるだけで差し替わる。 */
     frontImage: 'assets/characters/tonton-moriken-omote-cutout.png',
     backImage:  'assets/characters/tonton-moriken-ura-cutout.png', thumbnailImage: null,
-    specialImage: 'assets/characters/moriken-pressure.png',
-    vortexImage: 'assets/characters/moriken-vortex.png',
-    vortexFireImage: 'assets/characters/moriken-vortex-fire.png',
+    /* 大技の絵。ため1 → ため2 → 発射 の順に使う。
+       ため1は2枚あり、毎回どちらかが選ばれる。 */
+    chargeImages: [
+      ['assets/characters/moriken-pressure.png',
+       'assets/characters/moriken-pressure-alt.png'],   // ため1：圧をためる
+      ['assets/characters/moriken-vortex.png']          // ため2：手もとに渦
+    ],
+    fireImage: 'assets/characters/moriken-vortex-fire.png',
+    /* 絵は左へ撃つ向きで描かれている。相手が右にいるときは反転する。 */
+    specialFacesLeft: true,
     color: '#2b303a', auraColor: '#ffd166', size: { w: 73, h: 126 }, radius: 29,
     pushPower: 2.60, pushResist: 1.40, bounceBack: 0.20, aggression: 0.08,
     weight: 2.50, friction: 1.60, bounce: 0.25, stability: 1.95,

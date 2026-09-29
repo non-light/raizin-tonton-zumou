@@ -17,6 +17,17 @@
  * 見た目は f.spinVisual（回転）と f.auraTime（発光）で表現する。
  * ========================================================================= */
 
+/* もりけんさんの大技の調整値 */
+var MORIKEN = {
+  chargeTime: 0.95,      // ための長さ（ため1＋ため2）
+  stage2: 0.40,          // 残りこれを切ると「ため2（渦）」へ
+  blastTime: 0.45,       // 撃ったあと帯が残る時間
+  blastCap: 460,         // 撃ち込む力の上限
+  blastBase: 510,
+  blastLift: 150,        // 撃たれた相手の浮き
+  interval: 2.8          // 技と技のあいだ
+};
+
 var BEHAVIORS = {
 
   /* ---------------- 基本の4体 ---------------- */
@@ -247,43 +258,61 @@ var BEHAVIORS = {
 
   /* もりけんさん：静かな圧に、予兆のある黒い渦を加える */
   moriken: {
+    /* 大技は「圧をためて撃つ」の3段構え。
+         ため1 : 圧をためる（金のオーラ）
+         ため2 : 手もとに渦が生まれる
+         発射  : 相手へ撃ち込む
+       絵はキャラクターデータの chargeImages / fireImage から取る。 */
     step: function (f, dt, env) {
       var b = f.bstate;
-      if (b.vortexBlast > 0) b.vortexBlast = Math.max(0, b.vortexBlast - dt);
-      if (b.vortexCharge > 0) {
-        b.vortexCharge -= dt;
-        f.vx *= Math.max(0, 1 - dt * 3);
+      if (b.blast > 0) b.blast = Math.max(0, b.blast - dt);
+
+      if (b.charge > 0) {
+        b.charge -= dt;
+        f.vx *= Math.max(0, 1 - dt * 3);      // ためているあいだは動かない
         f.vy *= Math.max(0, 1 - dt * 3);
         f.auraTime = 0.2;
-        if (b.vortexCharge > 0) return;
-        b.vortexCharge = 0;
-        var target = env.opponent;
-        if (!target || target.state !== 'fight' || f.state !== 'fight') return;
-        var vx = target.x - f.x, vy = target.y - f.y;
-        var distance = Math.sqrt(vx * vx + vy * vy) || 1;
-        // 溜めてから放つぶん、ふだんの押し返しより強い
-        var power = Math.min(420, 470 / (1 + distance / 160) *
-                             (0.7 + 0.3 * target.stats.weight));
-        target.push(vx / distance * power, vy / distance * power, vx / distance * 1.2);
-        target.vz += 140;
-        b.vortexTargetX = target.x;
-        b.vortexTargetY = target.y;
-        b.vortexBlast = 0.42;
-        b.shout = '渦';
-        f.shoutTime = 0.8;
+        // 残り時間で「ため1 → ため2」を切り替える
+        b.chargeStage = b.charge > MORIKEN.stage2 ? 0 : 1;
+        if (b.charge > 0) return;
+
+        b.charge = 0;
+        b.chargeStage = -1;
+        var o = env.opponent;
+        if (!o || o.state !== 'fight' || f.state !== 'fight') return;
+
+        var dx = o.x - f.x, dy = o.y - f.y;
+        var d = Math.sqrt(dx * dx + dy * dy) || 1;
+        // ためてから放つぶん、ふだんの押し返しより強い
+        var power = Math.min(MORIKEN.blastCap,
+                             MORIKEN.blastBase / (1 + d / 160) *
+                             (0.7 + 0.3 * o.stats.weight));
+        o.push(dx / d * power, dy / d * power, dx / d * 1.2);
+        o.vz += MORIKEN.blastLift;
+        b.targetX = o.x;
+        b.targetY = o.y;
+        b.blast = MORIKEN.blastTime;
+        b.shout = '圧';
+        f.shoutTime = 1.0;
         f.ring = 1;
         f.auraTime = 0.7;
         Sound.boom();
         return;
       }
+
       b.t = (b.t === undefined ? 4.5 : b.t) - dt;
       if (b.t > 0) return;
-      b.t = 2.6 + Math.random() * 3.4;
+      b.t = MORIKEN.interval + Math.random() * 3.4;
+
       var roll = Math.random();
       if (roll < 0.34 && env.opponent && env.opponent.state === 'fight') {
-        b.vortexCharge = 0.5;    // 溜め。長いとそのぶん無防備になる
+        b.charge = MORIKEN.chargeTime;
+        b.chargeStage = 0;
+        b.pose = Math.random() < 0.5 ? 0 : 1;   // 圧のポーズは2種類から
+        Sound.omen(MORIKEN.chargeTime);
         return;
       }
+
       b.shout = '圧';
       if (roll < 0.60) {
         var a = Math.random() * Math.PI * 2;
@@ -292,17 +321,18 @@ var BEHAVIORS = {
         f.vz += 60;
         f.auraTime = 0.5; f.ring = 0.8; f.shoutTime = 0.9;
       } else {
-        var o = env.opponent;
-        if (!o || o.state !== 'fight') return;
-        var dx = o.x - f.x, dy = o.y - f.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+        var t = env.opponent;
+        if (!t || t.state !== 'fight') return;
+        var ex = t.x - f.x, ey = t.y - f.y, ed = Math.sqrt(ex * ex + ey * ey) || 1;
         // 軽い相手への押し返しは上限をつける
-        var p = Math.min(320, 320 / (1 + d / 110) * (0.6 + 0.4 * o.stats.weight));
-        o.push(dx / d * p, dy / d * p, dx / d * 1.3);
-        o.vz += 130;
+        var p = Math.min(320, 320 / (1 + ed / 110) * (0.6 + 0.4 * t.stats.weight));
+        t.push(ex / ed * p, ey / ed * p, ex / ed * 1.3);
+        t.vz += 130;
         f.auraTime = 0.6; f.ring = 1; f.shoutTime = 1.1;
       }
     }
   },
+
 
   /* シークレット：中身は未定。ここを書き換えれば性格がつく。 */
   secretPower: {

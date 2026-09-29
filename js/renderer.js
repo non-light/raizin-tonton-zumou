@@ -446,22 +446,39 @@ Renderer.prototype.drawSparks = function () {
 };
 
 /**
+ * 大技のいまの絵を返す。ため1 → ため2 → 発射 の順に切り替わる。
+ * 背中を向けているときは専用の絵がないので使わない。
+ */
+Renderer.prototype.bigMoveSprite = function (f) {
+  var c = f.character, b = f.bstate;
+  if (f.facingBack) return null;
+
+  if (b.blast > 0 && c.fireImage) return Sprites.byPath(c.fireImage);
+
+  if (b.charge > 0 && c.chargeImages) {
+    var stage = c.chargeImages[Math.min(b.chargeStage || 0, c.chargeImages.length - 1)];
+    if (stage && stage.length) return Sprites.byPath(stage[(b.pose || 0) % stage.length]);
+  }
+  return null;
+};
+
+/**
  * 渦の演出。渦そのものは絵に描かれているので、ここでは描かない。
  * 絵にない「相手へ伸びる帯」と着弾だけを足す。
  */
 Renderer.prototype.drawVortex = function (f) {
   var b = f.bstate;
-  if (!(b.vortexBlast > 0)) return;
+  if (!(b.blast > 0)) return;
 
   var ctx = this.ctx, sc = this.scale;
   var body = this.toScreen(f.x, f.y, f.z);
   // 絵のなかで渦を押し出している手のあたり
   var x = body.x + f.facing * 46 * sc;
   var y = body.y - f.character.size.h * 0.62 * sc;
-  var target = this.toScreen(b.vortexTargetX, b.vortexTargetY, 0);
+  var target = this.toScreen(b.targetX, b.targetY, 0);
   var tx = target.x, ty = target.y - 44 * sc;
 
-  var k = 1 - Math.min(1, b.vortexBlast / 0.42);   // 0=出た瞬間 1=消える直前
+  var k = 1 - Math.min(1, b.blast / MORIKEN.blastTime);  // 0=出た瞬間 1=消える直前
   var fade = 1 - k;
 
   ctx.save();
@@ -531,6 +548,9 @@ Renderer.prototype.drawFighter = function (f) {
   var sx = (1 + f.squash * 0.22) * drift;
   var sy = (1 - f.squash * 0.22) * drift;
 
+  // 大技の絵（ため1 → ため2 → 発射）。無ければ null。
+  var big = this.bigMoveSprite(f);
+
   // 専用モーションを持つキャラ（雷神）は、状態に応じた絵を使う
   var mo = f.motion, msp = null, off = null;
   if (mo) {
@@ -552,10 +572,10 @@ Renderer.prototype.drawFighter = function (f) {
   // tilt は姿勢、spinVisual は転がりなどの見た目だけの回転
   ctx.rotate(f.tilt + f.spinVisual + (off ? off.rot : 0));
   // モーションの絵は向きが描き込まれているので左右反転しない
-  var firingPose = c.vortexFireImage && f.bstate.shout === '渦' && f.shoutTime > 0;
-  var vortexPose = firingPose || c.vortexImage && !f.facingBack &&
-    f.bstate.vortexCharge > 0;
-  ctx.scale(sx * (mo ? 1 : vortexPose ? -f.facing : f.facing), sy);
+  // 大技の絵は左向きに描かれているので、相手が右にいるときだけ反転する。
+  // ふだんの絵は正面向きなので、これまでどおり facing で反転する。
+  var flip = big ? (c.specialFacesLeft ? -f.facing : f.facing) : f.facing;
+  ctx.scale(sx * (mo ? 1 : flip), sy);
 
   // 特殊挙動が出た瞬間の発光（どのキャラでも同じ仕組み）
   // 色が暗いキャラは宇宙背景に埋もれるので auraColor を優先する
@@ -567,15 +587,9 @@ Renderer.prototype.drawFighter = function (f) {
   if (msp && msp.ready) {
     ctx.drawImage(msp.image, -w / 2, -h, w, h);
   } else {
-    var fire = firingPose ? Sprites.byPath(c.vortexFireImage) : null;
-    var vortex = c.vortexImage && !f.facingBack &&
-      (f.bstate.vortexCharge > 0 || f.bstate.vortexBlast > 0)
-      ? Sprites.byPath(c.vortexImage) : null;
-    var special = fire && fire.ready ? fire : vortex && vortex.ready ? vortex :
-      c.specialImage && f.shoutTime > 0 && f.bstate.shout !== '渦' && !f.facingBack
-      ? Sprites.byPath(c.specialImage) : null;
-    var sprite = special && special.ready ? special : Sprites.get(c, f.facingBack);
-    if (special && special.ready) w = h * sprite.image.naturalWidth / sprite.image.naturalHeight;
+    var sprite = big && big.ready ? big : Sprites.get(c, f.facingBack);
+    // 大技の絵は縦横比が違うので、高さをそろえて幅を出し直す
+    if (big && big.ready) w = h * sprite.image.naturalWidth / sprite.image.naturalHeight;
     if (sprite.ready) {
       ctx.drawImage(sprite.image, -w / 2, -h, w, h);
     } else {

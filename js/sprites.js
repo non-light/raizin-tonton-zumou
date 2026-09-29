@@ -40,9 +40,12 @@ var Sprites = (function () {
       byPath(c.frontImage);
       if (c.backImage) byPath(c.backImage);
       if (c.thumbnailImage) byPath(c.thumbnailImage);
-      if (c.specialImage) byPath(c.specialImage);
-      if (c.vortexImage) byPath(c.vortexImage);
-      if (c.vortexFireImage) byPath(c.vortexFireImage);
+      if (c.chargeImages) {
+        for (var ci = 0; ci < c.chargeImages.length; ci++) {
+          for (var cj = 0; cj < c.chargeImages[ci].length; cj++) byPath(c.chargeImages[ci][cj]);
+        }
+      }
+      if (c.fireImage) byPath(c.fireImage);
       if (c.battleBackground) byPath(c.battleBackground);
       var set = c.motionSet && MOTION_SETS[c.motionSet];
       if (set) {
