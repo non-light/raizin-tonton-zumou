@@ -261,10 +261,11 @@ var BEHAVIORS = {
         if (!target || target.state !== 'fight' || f.state !== 'fight') return;
         var vx = target.x - f.x, vy = target.y - f.y;
         var distance = Math.sqrt(vx * vx + vy * vy) || 1;
-        var power = Math.min(270, 300 / (1 + distance / 160) *
+        // 溜めてから放つぶん、ふだんの押し返しより強い
+        var power = Math.min(420, 470 / (1 + distance / 160) *
                              (0.7 + 0.3 * target.stats.weight));
-        target.push(vx / distance * power, vy / distance * power, vx / distance);
-        target.vz += 95;
+        target.push(vx / distance * power, vy / distance * power, vx / distance * 1.2);
+        target.vz += 140;
         b.vortexTargetX = target.x;
         b.vortexTargetY = target.y;
         b.vortexBlast = 0.42;
@@ -277,10 +278,10 @@ var BEHAVIORS = {
       }
       b.t = (b.t === undefined ? 4.5 : b.t) - dt;
       if (b.t > 0) return;
-      b.t = 3.6 + Math.random() * 3.4;
+      b.t = 2.6 + Math.random() * 3.4;
       var roll = Math.random();
       if (roll < 0.34 && env.opponent && env.opponent.state === 'fight') {
-        b.vortexCharge = 0.85;
+        b.vortexCharge = 0.5;    // 溜め。長いとそのぶん無防備になる
         return;
       }
       b.shout = '圧';

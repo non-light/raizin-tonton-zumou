@@ -445,44 +445,43 @@ Renderer.prototype.drawSparks = function () {
   ctx.globalAlpha = 1;
 };
 
-/** 黒い渦の予兆と発射。キャラの上に短く重ねて技を読み取れるようにする。 */
+/**
+ * 渦の演出。渦そのものは絵に描かれているので、ここでは描かない。
+ * 絵にない「相手へ伸びる帯」と着弾だけを足す。
+ */
 Renderer.prototype.drawVortex = function (f) {
   var b = f.bstate;
-  if (!(b.vortexCharge > 0 || b.vortexBlast > 0)) return;
+  if (!(b.vortexBlast > 0)) return;
+
   var ctx = this.ctx, sc = this.scale;
   var body = this.toScreen(f.x, f.y, f.z);
-  var x = body.x + f.facing * (b.vortexBlast > 0 ? 45 : 20) * sc;
-  var y = body.y - f.character.size.h * 0.72 * sc;
-  var charging = b.vortexCharge > 0;
-  var radius = (charging ? 10 + (0.85 - b.vortexCharge) * 15 : 23) * sc;
+  // 絵のなかで渦を押し出している手のあたり
+  var x = body.x + f.facing * 46 * sc;
+  var y = body.y - f.character.size.h * 0.62 * sc;
+  var target = this.toScreen(b.vortexTargetX, b.vortexTargetY, 0);
+  var tx = target.x, ty = target.y - 44 * sc;
+
+  var k = 1 - Math.min(1, b.vortexBlast / 0.42);   // 0=出た瞬間 1=消える直前
+  var fade = 1 - k;
+
   ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.lineCap = 'round';
   ctx.shadowColor = '#a84dff';
-  ctx.shadowBlur = 20 * sc;
-  ctx.fillStyle = '#09031b';
-  ctx.strokeStyle = '#b36bff';
-  ctx.lineWidth = 3 * sc;
-  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  for (var i = 0; i < 3; i++) {
-    var angle = this.time * 9 + i * Math.PI * 2 / 3;
-    ctx.beginPath();
-    ctx.arc(x, y, radius * (0.45 + i * 0.13), angle, angle + Math.PI * 1.15);
-    ctx.stroke();
-  }
-  if (b.vortexBlast > 0) {
-    var target = this.toScreen(b.vortexTargetX, b.vortexTargetY, 0);
-    var tx = target.x, ty = target.y - 50 * sc;
-    var fade = Math.min(1, b.vortexBlast / 0.16);
-    ctx.globalAlpha = fade;
-    ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
-    ctx.strokeStyle = '#9e63ff'; ctx.lineWidth = 44 * sc; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
-    ctx.strokeStyle = '#140326'; ctx.lineWidth = 29 * sc; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
-    ctx.strokeStyle = '#d6a4ff'; ctx.lineWidth = 4 * sc; ctx.stroke();
-    ctx.beginPath(); ctx.arc(tx, ty, 28 * sc, 0, Math.PI * 2);
-    ctx.strokeStyle = '#e1b4ff'; ctx.lineWidth = 5 * sc; ctx.stroke();
-  }
+  ctx.shadowBlur = 24 * sc;
+
+  // 外側の帯 → 芯 の順に重ねる
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
+  ctx.strokeStyle = 'rgba(158,99,255,0.55)'; ctx.lineWidth = (34 + k * 16) * sc; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
+  ctx.strokeStyle = '#2a0a4d'; ctx.lineWidth = 18 * sc; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
+  ctx.strokeStyle = '#e6c6ff'; ctx.lineWidth = 4 * sc; ctx.stroke();
+
+  // 着弾
+  var r = (16 + k * 34) * sc;
+  ctx.beginPath(); ctx.arc(tx, ty, r, 0, Math.PI * 2);
+  ctx.strokeStyle = '#e1b4ff'; ctx.lineWidth = (6 * fade + 1) * sc; ctx.stroke();
   ctx.restore();
 };
 
@@ -600,8 +599,12 @@ Renderer.prototype.drawShout = function (f) {
   var pop = k < 0.18 ? 1.7 - k * 3.9 : 1;     // どんと出て、すっと縮む
   var fade = Math.min(1, life * 2.2);
 
-  var p = this.toScreen(f.x, f.y, f.character.size.h * 0.65);
+  var p = this.toScreen(f.x, f.y, f.character.size.h * 1.45);
   var size = 96 * this.scale * pop;
+  // 画面からはみ出さないように収める
+  var half = size * 0.72;
+  p.x = Math.max(half, Math.min(this.cssW - half, p.x));
+  p.y = Math.max(size * 0.62, Math.min(this.cssH - size * 0.5, p.y));
   var col = f.character.auraColor || '#ffd166';
 
   ctx.save();
