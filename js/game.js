@@ -66,6 +66,7 @@ Game.prototype.reset = function () {
   this.phase = 'intro';
   this.frozen = false;
   this.renderer.ripples.length = 0;
+  this.renderer.goodPulses.length = 0;
   this.renderer.resize();
   this.emitEnergy();
 };
@@ -204,6 +205,7 @@ Game.prototype.rollZone = function () {
     this.zones = [[s, Math.min(0.96, s + VIBE.wideWidth)]];
   }
   this.lateFrom = this.zones[this.zones.length - 1][1];
+  this.renderer.lateFrom = this.lateFrom;
 };
 
 /** いまのゲージがどの帯にいるか */
@@ -295,6 +297,7 @@ Game.prototype.stepIntoOpponent = function () {
   p.auraTime = 0.25;
   if (p.motion) p.motion.addEffect('burst', 0, -p.character.size.h * 0.5, 0.3);
   this.renderer.addSparks(p.x, p.y, 0.8);
+  this.renderer.addGoodPulse(p.x, p.y);
   Sound.nice();
 };
 

@@ -245,14 +245,46 @@ var BEHAVIORS = {
     }
   },
 
-  /* もりけんさん：ほとんど動かない。ただし突然大きく動くか、強烈に押し返す */
+  /* もりけんさん：静かな圧に、予兆のある黒い渦を加える */
   moriken: {
     step: function (f, dt, env) {
       var b = f.bstate;
+      if (b.vortexBlast > 0) b.vortexBlast = Math.max(0, b.vortexBlast - dt);
+      if (b.vortexCharge > 0) {
+        b.vortexCharge -= dt;
+        f.vx *= Math.max(0, 1 - dt * 3);
+        f.vy *= Math.max(0, 1 - dt * 3);
+        f.auraTime = 0.2;
+        if (b.vortexCharge > 0) return;
+        b.vortexCharge = 0;
+        var target = env.opponent;
+        if (!target || target.state !== 'fight' || f.state !== 'fight') return;
+        var vx = target.x - f.x, vy = target.y - f.y;
+        var distance = Math.sqrt(vx * vx + vy * vy) || 1;
+        var power = Math.min(270, 300 / (1 + distance / 160) *
+                             (0.7 + 0.3 * target.stats.weight));
+        target.push(vx / distance * power, vy / distance * power, vx / distance);
+        target.vz += 95;
+        b.vortexTargetX = target.x;
+        b.vortexTargetY = target.y;
+        b.vortexBlast = 0.42;
+        b.shout = '渦';
+        f.shoutTime = 0.8;
+        f.ring = 1;
+        f.auraTime = 0.7;
+        Sound.boom();
+        return;
+      }
       b.t = (b.t === undefined ? 4.5 : b.t) - dt;
       if (b.t > 0) return;
       b.t = 3.6 + Math.random() * 3.4;
-      if (Math.random() < 0.45) {
+      var roll = Math.random();
+      if (roll < 0.34 && env.opponent && env.opponent.state === 'fight') {
+        b.vortexCharge = 0.85;
+        return;
+      }
+      b.shout = '圧';
+      if (roll < 0.60) {
         var a = Math.random() * Math.PI * 2;
         f.vx += Math.cos(a) * 205;
         f.vy += Math.sin(a) * 205;
@@ -262,8 +294,7 @@ var BEHAVIORS = {
         var o = env.opponent;
         if (!o || o.state !== 'fight') return;
         var dx = o.x - f.x, dy = o.y - f.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
-        // 押し返しは軽いキャラほど効きすぎるので、上限をつけておく
-        // 押し返しは軽いキャラほど効きすぎるので、相手の重さで加減し上限もつける
+        // 軽い相手への押し返しは上限をつける
         var p = Math.min(320, 320 / (1 + d / 110) * (0.6 + 0.4 * o.stats.weight));
         o.push(dx / d * p, dy / d * p, dx / d * 1.3);
         o.vz += 130;

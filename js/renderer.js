@@ -14,6 +14,8 @@ function Renderer(canvas) {
   this.originY = 0;
   this.ripples = [];
   this.sparks = [];
+  this.goodPulses = [];
+  this.time = 0;
   this.rimPulse = 0;                 // 叩いた瞬間に土俵のふちが光る
   this.goldFlash = 0;                // 金の招き猫イベントの光
   this.lateFrom = 0.66;              // これを超えると土俵が赤くなる（ゲージの後半帯）
@@ -103,6 +105,11 @@ Renderer.prototype.addSparks = function (x, y, power) {
   if (this.sparks.length > 90) this.sparks.splice(0, this.sparks.length - 90);
 };
 
+Renderer.prototype.addGoodPulse = function (x, y) {
+  this.goodPulses.push({ x: x, y: y, t: 0 });
+  if (this.goodPulses.length > 5) this.goodPulses.shift();
+};
+
 Renderer.prototype.addShake = function (dx, dy, power) {
   var d = Math.sqrt(dx * dx + dy * dy) || 1;
   this.shake.dx = dx / d;
@@ -113,6 +120,7 @@ Renderer.prototype.addShake = function (dx, dy, power) {
 };
 
 Renderer.prototype.update = function (dt) {
+  this.time += dt;
   this.space.update(dt);
   if (this.backdrop) this.backdropFade = Math.min(1, this.backdropFade + dt * 1.4);
   this.rumble = Math.max(0, this.rumble - dt * 2.6);   // rumble() で毎フレーム入れ直せる
@@ -130,6 +138,11 @@ Renderer.prototype.update = function (dt) {
     p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
     p.vx *= 0.94; p.vy *= 0.94;
     if (p.t >= p.life) this.sparks.splice(s, 1);
+  }
+
+  for (var g = this.goodPulses.length - 1; g >= 0; g--) {
+    this.goodPulses[g].t += dt;
+    if (this.goodPulses[g].t >= 0.55) this.goodPulses.splice(g, 1);
   }
 
   var sh = this.shake;
@@ -175,8 +188,10 @@ Renderer.prototype.draw = function (fighters, energy) {
   var i;
   for (i = 0; i < order.length; i++) this.drawShadow(order[i]);
   for (i = 0; i < order.length; i++) this.drawFighter(order[i]);
+  for (i = 0; i < order.length; i++) this.drawVortex(order[i]);
 
   this.drawSparks();
+  this.drawGoodPulses();
   ctx.restore();
 
   // 金の招き猫イベントの金色の光（薄く重ねるだけで、土俵は隠さない）
@@ -430,6 +445,68 @@ Renderer.prototype.drawSparks = function () {
   ctx.globalAlpha = 1;
 };
 
+/** 黒い渦の予兆と発射。キャラの上に短く重ねて技を読み取れるようにする。 */
+Renderer.prototype.drawVortex = function (f) {
+  var b = f.bstate;
+  if (!(b.vortexCharge > 0 || b.vortexBlast > 0)) return;
+  var ctx = this.ctx, sc = this.scale;
+  var body = this.toScreen(f.x, f.y, f.z);
+  var x = body.x + f.facing * (b.vortexBlast > 0 ? 45 : 20) * sc;
+  var y = body.y - f.character.size.h * 0.72 * sc;
+  var charging = b.vortexCharge > 0;
+  var radius = (charging ? 10 + (0.85 - b.vortexCharge) * 15 : 23) * sc;
+  ctx.save();
+  ctx.shadowColor = '#a84dff';
+  ctx.shadowBlur = 20 * sc;
+  ctx.fillStyle = '#09031b';
+  ctx.strokeStyle = '#b36bff';
+  ctx.lineWidth = 3 * sc;
+  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  for (var i = 0; i < 3; i++) {
+    var angle = this.time * 9 + i * Math.PI * 2 / 3;
+    ctx.beginPath();
+    ctx.arc(x, y, radius * (0.45 + i * 0.13), angle, angle + Math.PI * 1.15);
+    ctx.stroke();
+  }
+  if (b.vortexBlast > 0) {
+    var target = this.toScreen(b.vortexTargetX, b.vortexTargetY, 0);
+    var tx = target.x, ty = target.y - 50 * sc;
+    var fade = Math.min(1, b.vortexBlast / 0.16);
+    ctx.globalAlpha = fade;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
+    ctx.strokeStyle = '#9e63ff'; ctx.lineWidth = 44 * sc; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
+    ctx.strokeStyle = '#140326'; ctx.lineWidth = 29 * sc; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
+    ctx.strokeStyle = '#d6a4ff'; ctx.lineWidth = 4 * sc; ctx.stroke();
+    ctx.beginPath(); ctx.arc(tx, ty, 28 * sc, 0, Math.PI * 2);
+    ctx.strokeStyle = '#e1b4ff'; ctx.lineWidth = 5 * sc; ctx.stroke();
+  }
+  ctx.restore();
+};
+
+Renderer.prototype.drawGoodPulses = function () {
+  var ctx = this.ctx;
+  for (var i = 0; i < this.goodPulses.length; i++) {
+    var pulse = this.goodPulses[i];
+    var k = pulse.t / 0.55;
+    var p = this.toScreen(pulse.x, pulse.y, 0);
+    ctx.save();
+    ctx.globalAlpha = 1 - k;
+    ctx.fillStyle = '#c4ffe1';
+    ctx.strokeStyle = '#173d32';
+    ctx.lineWidth = 3 * this.scale;
+    ctx.shadowColor = '#7effbd';
+    ctx.shadowBlur = 12 * this.scale;
+    ctx.font = 'bold ' + Math.max(14, 22 * this.scale) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.strokeText('いまだ！', p.x, p.y - (105 + 25 * k) * this.scale);
+    ctx.fillText('いまだ！', p.x, p.y - (105 + 25 * k) * this.scale);
+    ctx.restore();
+  }
+};
+
 /* ---------------- 力士 ---------------- */
 
 Renderer.prototype.drawShadow = function (f) {
@@ -476,7 +553,10 @@ Renderer.prototype.drawFighter = function (f) {
   // tilt は姿勢、spinVisual は転がりなどの見た目だけの回転
   ctx.rotate(f.tilt + f.spinVisual + (off ? off.rot : 0));
   // モーションの絵は向きが描き込まれているので左右反転しない
-  ctx.scale(sx * (mo ? 1 : f.facing), sy);
+  var firingPose = c.vortexFireImage && f.bstate.shout === '渦' && f.shoutTime > 0;
+  var vortexPose = firingPose || c.vortexImage && !f.facingBack &&
+    f.bstate.vortexCharge > 0;
+  ctx.scale(sx * (mo ? 1 : vortexPose ? -f.facing : f.facing), sy);
 
   // 特殊挙動が出た瞬間の発光（どのキャラでも同じ仕組み）
   // 色が暗いキャラは宇宙背景に埋もれるので auraColor を優先する
@@ -488,7 +568,15 @@ Renderer.prototype.drawFighter = function (f) {
   if (msp && msp.ready) {
     ctx.drawImage(msp.image, -w / 2, -h, w, h);
   } else {
-    var sprite = Sprites.get(c, f.facingBack);
+    var fire = firingPose ? Sprites.byPath(c.vortexFireImage) : null;
+    var vortex = c.vortexImage && !f.facingBack &&
+      (f.bstate.vortexCharge > 0 || f.bstate.vortexBlast > 0)
+      ? Sprites.byPath(c.vortexImage) : null;
+    var special = fire && fire.ready ? fire : vortex && vortex.ready ? vortex :
+      c.specialImage && f.shoutTime > 0 && f.bstate.shout !== '渦' && !f.facingBack
+      ? Sprites.byPath(c.specialImage) : null;
+    var sprite = special && special.ready ? special : Sprites.get(c, f.facingBack);
+    if (special && special.ready) w = h * sprite.image.naturalWidth / sprite.image.naturalHeight;
     if (sprite.ready) {
       ctx.drawImage(sprite.image, -w / 2, -h, w, h);
     } else {
@@ -503,7 +591,7 @@ Renderer.prototype.drawFighter = function (f) {
 
 /** 大技のときの漢字（もりけんさんの「圧！」など）。画面のいちばん手前に大きく出す。 */
 Renderer.prototype.drawShout = function (f) {
-  var ch = f.character.shout;
+  var ch = f.bstate.shout || f.character.shout;
   if (!ch || f.shoutTime <= 0) return;
 
   var ctx = this.ctx;

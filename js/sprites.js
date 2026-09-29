@@ -40,6 +40,9 @@ var Sprites = (function () {
       byPath(c.frontImage);
       if (c.backImage) byPath(c.backImage);
       if (c.thumbnailImage) byPath(c.thumbnailImage);
+      if (c.specialImage) byPath(c.specialImage);
+      if (c.vortexImage) byPath(c.vortexImage);
+      if (c.vortexFireImage) byPath(c.vortexFireImage);
       if (c.battleBackground) byPath(c.battleBackground);
       var set = c.motionSet && MOTION_SETS[c.motionSet];
       if (set) {
